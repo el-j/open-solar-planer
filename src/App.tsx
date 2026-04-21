@@ -23,6 +23,9 @@ export default function App() {
   const [gapX, setGapX] = useState<number>(2);
   const [gapY, setGapY] = useState<number>(2);
 
+  // Mobile tab navigation
+  const [mobileTab, setMobileTab] = useState<'canvas' | 'settings'>('canvas');
+
   // Free placement mode
   const [mode, setMode] = useState<'grid' | 'free'>('grid');
   const [freePanels, setFreePanels] = useState<FreePanel[]>([]);
@@ -259,8 +262,31 @@ export default function App() {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 font-sans text-slate-800">
+      {/* --- Mobile-only stats bar (visible on settings tab only) --- */}
+      {mobileTab === 'settings' && (
+      <div
+        className="md:hidden bg-white border-b border-slate-200 px-4 py-2 flex justify-around items-center shrink-0 shadow-sm z-10"
+        aria-label="Summary stats"
+      >
+        <div className="text-center">
+          <p className="text-xs text-slate-500 uppercase font-semibold">Anzahl Module</p>
+          <p className="text-xl font-bold text-blue-600">
+            {mode === 'free' ? freePanels.length : layout.totalPanels}
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-slate-500 uppercase font-semibold">Gesamtleistung</p>
+          <p className="text-xl font-bold text-green-600">
+            {mode === 'free'
+              ? (freeTotalPower / 1000).toFixed(2)
+              : (layout.totalPowerWp / 1000).toFixed(2)} kWp
+          </p>
+        </div>
+      </div>
+      )}
+
       {/* --- Sidebar (Controls) --- */}
-      <div className="w-full md:w-80 bg-white border-r border-slate-200 overflow-y-auto flex flex-col shadow-sm z-10 shrink-0 order-2 md:order-none">
+      <div className={`w-full md:w-80 bg-white border-r border-slate-200 overflow-y-auto flex flex-col shadow-sm z-10 shrink-0 ${mobileTab !== 'settings' ? 'hidden md:flex' : ''}`}>
         <div className="p-5 border-b border-slate-200 bg-blue-600 text-white">
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-bold flex items-center gap-2">
@@ -537,7 +563,7 @@ export default function App() {
       </div>
 
       {/* --- Main View (Canvas / Grid) --- */}
-      <div className="flex-1 flex flex-col relative bg-slate-200 order-1 md:order-none">
+      <div className={`flex-1 flex flex-col relative bg-slate-200 ${mobileTab !== 'canvas' ? 'hidden md:flex' : ''}`}>
         {/* Top Info Bar */}
         <div className="bg-white p-3 flex justify-around items-center border-b border-slate-300 shadow-sm z-10 shrink-0 flex-wrap gap-3">
           <div className="text-center">
@@ -737,6 +763,32 @@ export default function App() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* --- Mobile bottom tab navigation --- */}
+      <div className="md:hidden flex border-t border-slate-200 bg-white shrink-0" role="tablist" aria-label="Mobile navigation">
+        <button
+          role="tab"
+          aria-selected={mobileTab === 'canvas'}
+          onClick={() => setMobileTab('canvas')}
+          className={`flex-1 flex flex-col items-center justify-center py-3 text-xs font-medium gap-1 transition-colors ${mobileTab === 'canvas' ? 'text-blue-600 bg-blue-50' : 'text-slate-500 hover:text-slate-700'}`}
+          aria-label="Show canvas preview"
+          data-testid="mobile-tab-canvas"
+        >
+          <Sun className="w-5 h-5" />
+          Vorschau
+        </button>
+        <button
+          role="tab"
+          aria-selected={mobileTab === 'settings'}
+          onClick={() => setMobileTab('settings')}
+          className={`flex-1 flex flex-col items-center justify-center py-3 text-xs font-medium gap-1 transition-colors ${mobileTab === 'settings' ? 'text-blue-600 bg-blue-50' : 'text-slate-500 hover:text-slate-700'}`}
+          aria-label="Show settings"
+          data-testid="mobile-tab-settings"
+        >
+          <Settings className="w-5 h-5" />
+          Einstellungen
+        </button>
       </div>
     </div>
   );
