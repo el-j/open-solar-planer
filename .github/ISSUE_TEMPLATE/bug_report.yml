@@ -1,0 +1,73 @@
+name: Bug Report
+description: Report a bug or unexpected behaviour
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the form below to help us fix it faster.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+      placeholder: When I enter a roof width of X, the panel count shows Y but I expected Z…
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Open the app
+        2. Enter roof width 300 cm and height 200 cm
+        3. Select XL module preset
+        4. See incorrect panel count
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: App URL / Version
+      description: The URL or version where you encountered this bug.
+      placeholder: https://el-j.github.io/open-solar-planer/ — v1.2.3
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome / Chromium
+        - Firefox
+        - Safari
+        - Edge
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or screen recording
+      description: Attach any helpful screenshots or recordings.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to make sure this is not a duplicate
+          required: true
