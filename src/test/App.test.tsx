@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
@@ -61,5 +61,67 @@ describe('App', () => {
   it('renders GitHub repo link in header', () => {
     renderApp();
     expect(screen.getByRole('link', { name: /open github repository/i })).toBeInTheDocument();
+  });
+});
+
+describe('Free placement mode', () => {
+  it('renders mode toggle button', () => {
+    renderApp();
+    expect(screen.getByTestId('mode-toggle')).toBeInTheDocument();
+  });
+
+  it('switches to free mode when Frei button is clicked', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const freeBtn = screen.getByRole('button', { name: /switch to free placement mode/i });
+    await user.click(freeBtn);
+    expect(screen.getByTestId('tool-draw-zone')).toBeInTheDocument();
+  });
+
+  it('places a free panel on canvas click in free mode', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const freeBtn = screen.getByRole('button', { name: /switch to free placement mode/i });
+    await user.click(freeBtn);
+
+    const canvas = screen.getByTestId('canvas');
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+
+    expect(screen.getAllByTestId('free-panel').length).toBeGreaterThan(0);
+  });
+
+  it('deletes selected panel via delete button', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const freeBtn = screen.getByRole('button', { name: /switch to free placement mode/i });
+    await user.click(freeBtn);
+
+    const canvas = screen.getByTestId('canvas');
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+    expect(screen.getAllByTestId('free-panel').length).toBe(1);
+
+    const deleteBtn = screen.getByTestId('selected-panel-delete');
+    await user.click(deleteBtn);
+    expect(screen.queryAllByTestId('free-panel').length).toBe(0);
+  });
+
+  it('shows draw zone tool button in free mode', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+    expect(screen.getByTestId('tool-draw-zone')).toBeInTheDocument();
+  });
+
+  it('stats bar shows free panel count in free mode', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+
+    const canvas = screen.getByTestId('canvas');
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerDown(canvas, { clientX: 200, clientY: 200, pointerId: 2 });
+
+    const totalPanels = screen.getByTestId('total-panels');
+    expect(Number(totalPanels.textContent)).toBe(2);
   });
 });
