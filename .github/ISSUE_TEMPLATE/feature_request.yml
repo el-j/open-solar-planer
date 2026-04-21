@@ -1,0 +1,59 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement to the Open Solar Planer!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the problem or gap this feature addresses.
+      placeholder: As a user, I cannot currently enter a custom roof shape, so I have to approximate…
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature you would like to see.
+      placeholder: Add a polygon drawing tool on the canvas so users can draw their roof outline…
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative approaches you have thought of?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area of the app
+      options:
+        - Layout calculation
+        - Canvas / Visualisation
+        - Panel settings
+        - Roof / Area settings
+        - Export / Sharing
+        - Performance
+        - Accessibility
+        - CI/CD / Tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to make sure this is not a duplicate
+          required: true
