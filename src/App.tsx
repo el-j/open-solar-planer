@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Upload, Settings, Sun, Info, Maximize, RotateCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Upload, Settings, Sun, Info, Maximize, RotateCw, GitFork } from 'lucide-react';
 import { PRESETS, calculateLayout } from './layout';
 
 export default function App() {
@@ -100,12 +101,32 @@ export default function App() {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 font-sans text-slate-800">
       {/* --- Sidebar (Controls) --- */}
-      <div className="w-full md:w-80 bg-white border-r border-slate-200 overflow-y-auto flex flex-col shadow-sm z-10">
+      <div className="w-full md:w-80 bg-white border-r border-slate-200 overflow-y-auto flex flex-col shadow-sm z-10 shrink-0 order-2 md:order-none">
         <div className="p-5 border-b border-slate-200 bg-blue-600 text-white">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Sun className="w-6 h-6 text-yellow-300" />
-            PV Layout Planer
-          </h1>
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <Sun className="w-6 h-6 text-yellow-300" />
+              PV Layout Planer
+            </h1>
+            <div className="flex items-center gap-1">
+              <a
+                href="https://github.com/el-j/open-solar-planer"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded hover:bg-blue-500 transition-colors"
+                aria-label="Open GitHub repository"
+              >
+                <GitFork className="w-4 h-4 text-blue-100" />
+              </a>
+              <Link
+                to="/about"
+                className="p-1.5 rounded hover:bg-blue-500 transition-colors"
+                aria-label="About this app"
+              >
+                <Info className="w-4 h-4 text-blue-100" />
+              </Link>
+            </div>
+          </div>
           <p className="text-blue-100 text-sm mt-1">Open Source Solar Tool</p>
         </div>
 
@@ -258,7 +279,7 @@ export default function App() {
       </div>
 
       {/* --- Main View (Canvas / Grid) --- */}
-      <div className="flex-1 flex flex-col relative bg-slate-200">
+      <div className="flex-1 flex flex-col relative bg-slate-200 order-1 md:order-none">
         {/* Top Info Bar */}
         <div className="bg-white p-4 flex justify-around items-center border-b border-slate-300 shadow-sm z-10 shrink-0 flex-wrap gap-4">
           <div className="text-center">
@@ -283,7 +304,7 @@ export default function App() {
               width: `${roofWidth * scaleFactor}px`,
               height: `${roofHeight * scaleFactor}px`,
               backgroundImage: bgImage ? `url(${bgImage})` : 'none',
-              backgroundSize: 'cover',
+              backgroundSize: 'contain',
               backgroundPosition: 'center',
             }}
             data-testid="canvas"
