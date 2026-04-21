@@ -1,5 +1,34 @@
 // --- Types & Constants ---
 
+export type FreePanel = {
+  id: string;
+  x: number; // cm from roof left
+  y: number; // cm from roof top
+  width: number; // cm
+  height: number; // cm
+  power: number; // Wp
+};
+
+export type ExclusionZone = {
+  id: string;
+  x: number; // cm from roof left
+  y: number; // cm from roof top
+  width: number; // cm
+  height: number; // cm
+  label?: string;
+};
+
+export function rectanglesOverlap(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number,
+): boolean {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
+export function panelOverlapsZone(panel: FreePanel, zone: ExclusionZone): boolean {
+  return rectanglesOverlap(panel.x, panel.y, panel.width, panel.height, zone.x, zone.y, zone.width, zone.height);
+}
+
 export type PanelPreset = {
   id: string;
   name: string;
