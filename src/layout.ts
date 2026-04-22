@@ -29,6 +29,25 @@ export function panelOverlapsZone(panel: FreePanel, zone: ExclusionZone): boolea
   return rectanglesOverlap(panel.x, panel.y, panel.width, panel.height, zone.x, zone.y, zone.width, zone.height);
 }
 
+/**
+ * Clamp an exclusion zone rectangle so that it stays within the roof bounds.
+ * All parameters are in cm. Returns the clamped x, y, width, height.
+ */
+export function clampZoneToBounds(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  roofW: number,
+  roofH: number,
+): { x: number; y: number; width: number; height: number } {
+  const clampedX = Math.max(0, Math.min(x, roofW));
+  const clampedY = Math.max(0, Math.min(y, roofH));
+  const clampedW = Math.min(w, Math.max(0, roofW - clampedX));
+  const clampedH = Math.min(h, Math.max(0, roofH - clampedY));
+  return { x: clampedX, y: clampedY, width: clampedW, height: clampedH };
+}
+
 export type PanelPreset = {
   id: string;
   name: string;

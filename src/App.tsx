@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload, Settings, Sun, Info, Maximize, RotateCw, GitFork, Move, Square, Trash2 } from 'lucide-react';
-import { PRESETS, calculateLayout, panelOverlapsZone } from './layout';
+import { Upload, Settings, Sun, Info, Maximize, RotateCw, GitFork, Move, Square, Trash2, MousePointer } from 'lucide-react';
+import { PRESETS, calculateLayout, panelOverlapsZone, clampZoneToBounds } from './layout';
 import type { FreePanel, ExclusionZone } from './layout';
 
 export default function App() {
@@ -33,6 +33,9 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<'select' | 'draw-zone'>('select');
 
+  // Zoom state for pinch-to-zoom
+  const [zoomScale, setZoomScale] = useState<number>(1);
+
   // Drag state refs (avoids re-renders mid-drag)
   const dragRef = useRef<{
     type: 'panel' | 'zone-draw';
@@ -47,6 +50,10 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+
+  // Per-pointer tracking for pinch-to-zoom (two-finger gesture)
+  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const lastPinchDist = useRef<number | null>(null);
 
   // Update Preset
   const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -100,7 +107,7 @@ export default function App() {
     return Math.min(availableW / roofWidth, availableH / roofHeight);
   }, [containerSize, roofWidth, roofHeight]);
 
-  const pxToCm = useCallback((px: number) => px / scaleFactor, [scaleFactor]);
+  const pxToCm = useCallback((px: number) => px / (scaleFactor * zoomScale), [scaleFactor, zoomScale]);
 
   const clampPanel = useCallback(
     (x: number, y: number, w: number, h: number) => ({
@@ -116,18 +123,40 @@ export default function App() {
   const handleCanvasPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (mode !== 'free') return;
+
+      // Track all active pointer positions for pinch detection
+      activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      // Two-finger touch → start pinch zoom; cancel any ongoing single-pointer drag
+      if (e.pointerType === 'touch' && activePointers.current.size >= 2) {
+        const pts = Array.from(activePointers.current.values()).slice(0, 2);
+        lastPinchDist.current = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        if (dragRef.current) {
+          if (dragRef.current.type === 'zone-draw') {
+            const zid = dragRef.current.drawZoneId!;
+            setExclusionZones(prev => prev.filter(z => z.id !== zid));
+            setActiveTool('select');
+          }
+          dragRef.current = null;
+        }
+        return;
+      }
+
       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-      const pxX = e.clientX - rect.left;
-      const pxY = e.clientY - rect.top;
+      // Clamp pointer position to canvas bounds to prevent out-of-bounds zones on mobile
+      const pxX = Math.min(Math.max(0, e.clientX - rect.left), rect.width);
+      const pxY = Math.min(Math.max(0, e.clientY - rect.top), rect.height);
 
       if (activeTool === 'draw-zone') {
+        const cmX = pxToCm(pxX);
+        const cmY = pxToCm(pxY);
         const id = `zone-${Date.now()}`;
         setExclusionZones(prev => [
           ...prev,
-          { id, x: Math.round(pxToCm(pxX)), y: Math.round(pxToCm(pxY)), width: 0, height: 0 },
+          { id, x: Math.round(cmX), y: Math.round(cmY), width: 0, height: 0 },
         ]);
         dragRef.current = { type: 'zone-draw', startX: pxX, startY: pxY, drawZoneId: id };
-        (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+        (e.currentTarget as HTMLDivElement).setPointerCapture?.(e.pointerId);
         return;
       }
 
@@ -148,10 +177,26 @@ export default function App() {
 
   const handleCanvasPointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      // Keep pointer position up to date for pinch calculation
+      if (activePointers.current.has(e.pointerId)) {
+        activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+
+      // Pinch zoom: two touch pointers active
+      if (e.pointerType === 'touch' && activePointers.current.size >= 2 && lastPinchDist.current !== null) {
+        const pts = Array.from(activePointers.current.values()).slice(0, 2);
+        const newDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        const ratio = newDist / lastPinchDist.current;
+        setZoomScale(prev => Math.min(4, Math.max(0.5, prev * ratio)));
+        lastPinchDist.current = newDist;
+        return;
+      }
+
       if (!dragRef.current) return;
       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-      const pxX = e.clientX - rect.left;
-      const pxY = e.clientY - rect.top;
+      // Clamp pointer to canvas bounds so zone edges never escape the roof area
+      const pxX = Math.min(Math.max(0, e.clientX - rect.left), rect.width);
+      const pxY = Math.min(Math.max(0, e.clientY - rect.top), rect.height);
 
       if (dragRef.current.type === 'zone-draw') {
         const startCmX = pxToCm(dragRef.current.startX);
@@ -159,18 +204,16 @@ export default function App() {
         const curCmX = pxToCm(pxX);
         const curCmY = pxToCm(pxY);
         const zid = dragRef.current.drawZoneId!;
+        const clamped = clampZoneToBounds(
+          Math.min(startCmX, curCmX),
+          Math.min(startCmY, curCmY),
+          Math.abs(curCmX - startCmX),
+          Math.abs(curCmY - startCmY),
+          roofWidth,
+          roofHeight,
+        );
         setExclusionZones(prev =>
-          prev.map(z =>
-            z.id === zid
-              ? {
-                  ...z,
-                  x: Math.round(Math.min(startCmX, curCmX)),
-                  y: Math.round(Math.min(startCmY, curCmY)),
-                  width: Math.round(Math.abs(curCmX - startCmX)),
-                  height: Math.round(Math.abs(curCmY - startCmY)),
-                }
-              : z,
-          ),
+          prev.map(z => (z.id === zid ? { ...z, ...clamped } : z)),
         );
       } else if (dragRef.current.type === 'panel' && dragRef.current.id) {
         const dxCm = pxToCm(pxX - dragRef.current.startX);
@@ -179,21 +222,23 @@ export default function App() {
         setFreePanels(prev =>
           prev.map(p => {
             if (p.id !== id) return p;
-            const clamped = clampPanel(
+            const c = clampPanel(
               (dragRef.current!.origX ?? p.x) + dxCm,
               (dragRef.current!.origY ?? p.y) + dyCm,
               p.width,
               p.height,
             );
-            return { ...p, ...clamped };
+            return { ...p, ...c };
           }),
         );
       }
     },
-    [pxToCm, clampPanel],
+    [pxToCm, clampPanel, roofWidth, roofHeight],
   );
 
-  const handleCanvasPointerUp = useCallback(() => {
+  const handleCanvasPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    activePointers.current.delete(e.pointerId);
+    if (activePointers.current.size < 2) lastPinchDist.current = null;
     if (!dragRef.current) return;
     if (dragRef.current.type === 'zone-draw') {
       const zid = dragRef.current.drawZoneId!;
@@ -204,10 +249,26 @@ export default function App() {
     dragRef.current = null;
   }, []);
 
+  // Cancel handler: browser took over the pointer (e.g. scroll gesture on mobile).
+  // Discard any in-progress zone draw, reset the active tool, and clear drag state.
+  const handleCanvasPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    activePointers.current.delete(e.pointerId);
+    if (activePointers.current.size < 2) lastPinchDist.current = null;
+    if (!dragRef.current) return;
+    if (dragRef.current.type === 'zone-draw') {
+      const zid = dragRef.current.drawZoneId!;
+      setExclusionZones(prev => prev.filter(z => z.id !== zid));
+      setActiveTool('select');
+    }
+    dragRef.current = null;
+  }, []);
+
   const handlePanelPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, panel: FreePanel) => {
       if (mode !== 'free') return;
       e.stopPropagation();
+      // Ignore a second pointer while already dragging (prevents ghost panels on multi-touch)
+      if (dragRef.current) return;
       setSelectedId(panel.id);
       const rect = canvasRef.current!.getBoundingClientRect();
       dragRef.current = {
@@ -218,7 +279,7 @@ export default function App() {
         origX: panel.x,
         origY: panel.y,
       };
-      (canvasRef.current as HTMLDivElement).setPointerCapture(e.pointerId);
+      (canvasRef.current as HTMLDivElement).setPointerCapture?.(e.pointerId);
     },
     [mode],
   );
@@ -564,28 +625,30 @@ export default function App() {
 
       {/* --- Main View (Canvas / Grid) --- */}
       <div className={`flex-1 flex flex-col relative bg-slate-200 ${mobileTab !== 'canvas' ? 'hidden md:flex' : ''}`}>
-        {/* Top Info Bar */}
-        <div className="bg-white p-3 flex justify-around items-center border-b border-slate-300 shadow-sm z-10 shrink-0 flex-wrap gap-3">
-          <div className="text-center">
-            <p className="text-xs text-slate-500 uppercase font-semibold">Anzahl Module</p>
-            <p className="text-2xl font-bold text-blue-600" data-testid="total-panels">
-              {mode === 'free' ? freePanels.length : layout.totalPanels}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-slate-500 uppercase font-semibold">Gesamtleistung</p>
-            <p className="text-2xl font-bold text-green-600" data-testid="total-power">
-              {mode === 'free'
-                ? (freeTotalPower / 1000).toFixed(2)
-                : (layout.totalPowerWp / 1000).toFixed(2)} kWp
-            </p>
-          </div>
-          {mode === 'grid' && (
-            <div className="text-center hidden sm:block">
-              <p className="text-xs text-slate-500 uppercase font-semibold">Anordnung</p>
-              <p className="text-lg font-medium text-slate-700" data-testid="layout-grid">{layout.cols} x {layout.rows}</p>
+        {/* Top Info Bar — compact single-row HUD */}
+        <div className="bg-white px-3 py-2 flex items-center justify-between border-b border-slate-300 shadow-sm z-10 shrink-0 gap-2 flex-wrap">
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <p className="text-xs text-slate-500 uppercase font-semibold leading-none">Module</p>
+              <p className="text-xl font-bold text-blue-600" data-testid="total-panels">
+                {mode === 'free' ? freePanels.length : layout.totalPanels}
+              </p>
             </div>
-          )}
+            <div className="text-center">
+              <p className="text-xs text-slate-500 uppercase font-semibold leading-none">Leistung</p>
+              <p className="text-xl font-bold text-green-600" data-testid="total-power">
+                {mode === 'free'
+                  ? (freeTotalPower / 1000).toFixed(2)
+                  : (layout.totalPowerWp / 1000).toFixed(2)} kWp
+              </p>
+            </div>
+            {mode === 'grid' && (
+              <div className="text-center hidden sm:block">
+                <p className="text-xs text-slate-500 uppercase font-semibold leading-none">Anordnung</p>
+                <p className="text-base font-medium text-slate-700" data-testid="layout-grid">{layout.cols} x {layout.rows}</p>
+              </div>
+            )}
+          </div>
           {/* Mode toggle */}
           <div className="flex items-center gap-1 bg-slate-100 rounded p-1">
             <button
@@ -606,22 +669,10 @@ export default function App() {
               Frei
             </button>
           </div>
-          {/* Free mode tools */}
-          {mode === 'free' && (
-            <button
-              onClick={() => setActiveTool(activeTool === 'draw-zone' ? 'select' : 'draw-zone')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium border transition-colors ${activeTool === 'draw-zone' ? 'bg-orange-100 border-orange-400 text-orange-700' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}`}
-              aria-label="Draw exclusion zone"
-              data-testid="tool-draw-zone"
-            >
-              <Square className="w-3.5 h-3.5" />
-              Sperrzone
-            </button>
-          )}
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 overflow-hidden relative flex items-center justify-center p-5" ref={containerRef}>
+        <div className="flex-1 overflow-hidden relative flex items-center justify-center p-5 touch-none" ref={containerRef} style={{ overscrollBehavior: 'none' }}>
           <div
             ref={canvasRef}
             className="relative shadow-xl border-2 border-slate-400 bg-slate-300 overflow-hidden"
@@ -634,11 +685,14 @@ export default function App() {
               cursor: mode === 'free'
                 ? activeTool === 'draw-zone' ? 'crosshair' : 'cell'
                 : 'default',
+              transform: `scale(${zoomScale})`,
+              transformOrigin: 'center center',
             }}
             data-testid="canvas"
             onPointerDown={mode === 'free' ? handleCanvasPointerDown : undefined}
             onPointerMove={mode === 'free' ? handleCanvasPointerMove : undefined}
             onPointerUp={mode === 'free' ? handleCanvasPointerUp : undefined}
+            onPointerCancel={mode === 'free' ? handleCanvasPointerCancel : undefined}
           >
             {/* Grid Rendering (grid mode only) */}
             {mode === 'grid' && (
@@ -704,6 +758,19 @@ export default function App() {
                     {zone.label && zone.height * scaleFactor > 16 && (
                       <span className="text-orange-800 text-xs font-medium px-1 truncate max-w-full">{zone.label}</span>
                     )}
+                    {/* Inline delete handle for selected zone (mobile-friendly touch target) */}
+                    {selectedId === zone.id && (
+                      <button
+                        className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center z-20 shadow-md hover:bg-red-600 transition-colors"
+                        style={{ pointerEvents: 'auto' }}
+                        onClick={e => { e.stopPropagation(); handleDeleteSelected(); }}
+                        onPointerDown={e => e.stopPropagation()}
+                        aria-label="Delete exclusion zone"
+                        data-testid="inline-zone-delete"
+                      >
+                        <span className="text-sm font-bold leading-none">×</span>
+                      </button>
+                    )}
                   </div>
                 ))}
 
@@ -737,6 +804,19 @@ export default function App() {
                           {overlapping && ' ⚠'}
                         </span>
                       )}
+                      {/* Inline delete handle for selected panel (mobile-friendly touch target) */}
+                      {isSelected && (
+                        <button
+                          className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center z-20 shadow-md hover:bg-red-600 transition-colors"
+                          style={{ pointerEvents: 'auto' }}
+                          onClick={e => { e.stopPropagation(); handleDeleteSelected(); }}
+                          onPointerDown={e => e.stopPropagation()}
+                          aria-label="Delete panel"
+                          data-testid="inline-panel-delete"
+                        >
+                          <span className="text-sm font-bold leading-none">×</span>
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -762,6 +842,42 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {/* Floating toolbar — visible in free mode only (FAB-style, z-index above zones) */}
+          {mode === 'free' && (
+            <div
+              className="absolute bottom-4 right-4 z-30 flex flex-col gap-2"
+              aria-label="Canvas tools"
+              data-testid="floating-toolbar"
+            >
+              <button
+                onClick={() => setActiveTool('select')}
+                className={`w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-colors ${activeTool === 'select' ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                aria-label="Select tool"
+                data-testid="fab-select"
+              >
+                <MousePointer className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setActiveTool(activeTool === 'draw-zone' ? 'select' : 'draw-zone')}
+                className={`w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-colors ${activeTool === 'draw-zone' ? 'bg-orange-500 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                aria-label="Draw exclusion zone"
+                data-testid="tool-draw-zone"
+              >
+                <Square className="w-5 h-5" />
+              </button>
+              {selectedId && (
+                <button
+                  onClick={handleDeleteSelected}
+                  className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  aria-label="Delete selected"
+                  data-testid="fab-delete-selected"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
