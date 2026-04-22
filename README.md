@@ -5,13 +5,41 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 
-> **A free, open-source solar module layout planner** — plan your PV installation directly in the browser. No sign-up, no server, fully static.
+> **A free, open-source solar module layout planner** — plan your PV installation directly in the browser. No sign-up, no server, fully static. Solar for everyone. Energy must be free.
 
-🚀 **Live app:** [el-j.github.io/open-solar-planer](https://el-j.github.io/open-solar-planer/)
+🚀 **Live app:** [el-j.github.io/open-solar-planer](https://el-j.github.io/open-solar-planer/)  
+🗺️ **Full roadmap:** [ROADMAP.md](./ROADMAP.md)
 
 ---
 
-## Features
+## 🌟 Join Us — We're Building the Standard for Open Solar Planning
+
+We are on a mission to make solar planning accessible to everyone — hobbyists, professionals, communities — worldwide, for free, in the browser. We need contributors in every discipline: **React/TypeScript, canvas/WebGL, solar engineering, UX, translation, data curation, and documentation.**
+
+👉 See [ROADMAP.md](./ROADMAP.md) for the full vision and pick an area that excites you.  
+👉 Open a [Discussion](https://github.com/el-j/open-solar-planer/discussions) to introduce yourself or propose an idea.  
+👉 Browse [open issues](https://github.com/el-j/open-solar-planer/issues) — good first issues are labelled `good first issue`.
+
+---
+
+## 🗺️ Roadmap at a Glance
+
+| Phase | Theme | Status |
+|---|---|---|
+| **v1.0** | 2D grid + free placement, CI/CD, mobile layout | ✅ **Released** |
+| **v1.1–v1.4** | UX polish, undo/redo, panel library, URL import, session sharing | 🔧 In Progress |
+| **v2.0–v2.2** | Multi-area projects, string planning, MPPT validation | 📋 Planned |
+| **v2.3–v2.5** | Cost planner, BOM generator, payback calculator | 📋 Planned |
+| **v3.0–v3.2** | Pitched roofs, pseudo-3D isometric view, basic shading | 📋 Planned |
+| **v3.3–v3.5** | Photo-to-plan: perspective correction, photogrammetry (WASM) | 💡 Concept |
+| **v4.0–v4.2** | Full 3D editor (Three.js), wiring in 3D, glTF export | 💡 Concept |
+| **v4.3–v5.0** | Off-grid sizing, energy yield, system diagram generator, grid-tie | 💡 Concept |
+
+Full details, acceptance criteria, and contributor guidance: **[ROADMAP.md](./ROADMAP.md)**
+
+---
+
+## ✅ Current Features (v1.0)
 
 - 🔲 **Visual grid layout** — see exactly how many panels fit on your roof
 - 📐 **Custom roof dimensions** — enter width & height in centimetres
@@ -20,7 +48,8 @@
 - 🔄 **Portrait / Landscape** — toggle panel orientation with one click
 - ↔️ **Mounting gaps** — configure X and Y spacing for clamps and thermal expansion
 - ⚡ **Live totals** — panel count, total power (kWp), and grid arrangement update instantly
-- 📱 **Responsive** — works on desktop, tablet, and mobile
+- 🎯 **Free placement mode** — drag panels freely, draw exclusion zones (chimneys, windows, …)
+- 📱 **Mobile-first tab layout** — canvas and settings on separate tabs, full screen on mobile
 
 ---
 
@@ -72,7 +101,8 @@ Quick summary:
 2. Fork → branch → commit (using [Conventional Commits](https://www.conventionalcommits.org/))
 3. Open a PR against `main` — CI must pass
 
-See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards.
+See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards.  
+See [ROADMAP.md](./ROADMAP.md) for what we are building next and where your skills are needed most.
 
 ---
 
