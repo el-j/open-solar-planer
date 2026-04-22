@@ -20,8 +20,8 @@ const OWNER = 'el-j';
 const REPO  = 'open-solar-planer';
 const TOKEN = process.env.GITHUB_TOKEN;
 
-/** GitHub's rate limit for issue creation is ~80 creates/minute. */
-const RATE_LIMIT_DELAY_MS = 800;
+/** GitHub's rate limit for issue creation is ~80 creates/minute (750 ms ≈ 80/min). */
+const RATE_LIMIT_DELAY_MS = 750;
 
 if (!TOKEN) {
   console.error('ERROR: GITHUB_TOKEN env var is required.');
@@ -118,7 +118,7 @@ Every contributor can clone, run, test, and ship in < 5 minutes.
 ## Deliverables
 - [ ] Expand \`calculateLayout()\` edge-case tests (0-width, 0-height, float inputs, negative gaps)
 - [ ] Add \`test:coverage\` script output badge to README
-- [ ] Set Vitest coverage threshold (80 % statements/branches)
+- [ ] Set Vitest coverage threshold (80% statements/branches)
 - [ ] Document dev setup in CONTRIBUTING.md (verify and update if stale)
 - [ ] Verify \`npm run lint\`, \`npm test\`, \`npm run build\` all green on \`main\`
 
@@ -910,7 +910,7 @@ async function run() {
       const oldLabs = i.labels.map(l => l.name).join(', ');
       console.log(`   #${i.number}: "${i.title}" (current labels: ${oldLabs})`);
       console.log(`   → suggest: type/feat or type/fix + phase/<N> + status/planned`);
-      console.log(`   → run: gh issue edit ${i.number} --add-label "type/feat,status/planned" --remove-label "${oldLabs}"`);
+      console.log(`   → run: gh issue edit ${i.number} --add-label 'type/feat,status/planned' --remove-label '${oldLabs}'`);
     }
   } else {
     console.log('  ✓ No legacy-label issues found.');
