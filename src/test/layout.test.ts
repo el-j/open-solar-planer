@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateLayout, PRESETS, rectanglesOverlap, panelOverlapsZone } from '../layout';
+import { calculateLayout, PRESETS, rectanglesOverlap, panelOverlapsZone, clampZoneToBounds } from '../layout';
 import type { FreePanel, ExclusionZone } from '../layout';
 
 describe('calculateLayout', () => {
@@ -119,5 +119,39 @@ describe('panelOverlapsZone', () => {
 
   it('returns true when panel partially overlaps zone', () => {
     expect(panelOverlapsZone(makePanel(90, 90, 20, 20), makeZone(0, 0, 100, 100))).toBe(true);
+  });
+});
+
+describe('clampZoneToBounds', () => {
+  it('leaves a fully inside zone unchanged', () => {
+    const result = clampZoneToBounds(10, 10, 50, 50, 200, 150);
+    expect(result).toEqual({ x: 10, y: 10, width: 50, height: 50 });
+  });
+
+  it('clamps start coordinates that are beyond the roof boundaries', () => {
+    // Negative start → clamped to 0; the zone extent (40×40) still fits within 200×150
+    const result = clampZoneToBounds(-20, -30, 40, 40, 200, 150);
+    expect(result.x).toBe(0);
+    expect(result.y).toBe(0);
+    // Width and height fit within the roof at position (0,0), so they remain unchanged
+    expect(result.width).toBe(40);
+    expect(result.height).toBe(40);
+  });
+
+  it('clamps width and height that would exceed the roof boundary', () => {
+    // Zone starts at 160,120 and tries to extend 80×60 — would go beyond 200×150
+    const result = clampZoneToBounds(160, 120, 80, 60, 200, 150);
+    expect(result.x).toBe(160);
+    expect(result.y).toBe(120);
+    expect(result.width).toBe(40);  // capped at 200 - 160
+    expect(result.height).toBe(30); // capped at 150 - 120
+  });
+
+  it('handles a 1×1 cm roof without crashing or negative values', () => {
+    const result = clampZoneToBounds(0, 0, 5, 5, 1, 1);
+    expect(result.x).toBeGreaterThanOrEqual(0);
+    expect(result.y).toBeGreaterThanOrEqual(0);
+    expect(result.width).toBeGreaterThanOrEqual(0);
+    expect(result.height).toBeGreaterThanOrEqual(0);
   });
 });
