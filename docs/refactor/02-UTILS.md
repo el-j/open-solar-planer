@@ -25,6 +25,25 @@ Move all pure business-logic functions into individual, named files under `src/u
 
 ## Utils to Create
 
+### `src/utils/clampZoneToBounds.ts`
+
+**New (added by bugfix).** Clamps an exclusion zone rectangle so it stays within roof bounds. All parameters in cm.
+
+```typescript
+export type ZoneBounds = { x: number; y: number; width: number; height: number };
+
+export function clampZoneToBounds(
+  x: number, y: number, w: number, h: number,
+  roofW: number, roofH: number,
+): ZoneBounds {
+  const clampedX = Math.max(0, Math.min(x, roofW));
+  const clampedY = Math.max(0, Math.min(y, roofH));
+  const clampedW = Math.min(w, Math.max(0, roofW - clampedX));
+  const clampedH = Math.min(h, Math.max(0, roofH - clampedY));
+  return { x: clampedX, y: clampedY, width: clampedW, height: clampedH };
+}
+```
+
 ### `src/utils/calculateLayout.ts`
 
 Move from `src/layout.ts`. Zero changes to logic or signature.
@@ -163,7 +182,7 @@ export function generateId(prefix: 'panel' | 'zone'): string {
 
 ### `src/utils/index.ts`
 
-Barrel re-export of all the above.
+Barrel re-export of all the above (including `clampZoneToBounds`).
 
 ---
 

@@ -183,6 +183,7 @@ type ModeActions = {
 type CanvasState = {
   bgImage: string | null;
   containerSize: { width: number; height: number };  // px
+  zoomScale: number;   // pinch-to-zoom multiplier, default 1, range [0.5, 4]
 };
 ```
 
@@ -191,6 +192,7 @@ type CanvasState = {
 type CanvasActions = {
   setBgImage: (dataUrl: string | null) => void;
   setContainerSize: (size: { width: number; height: number }) => void;
+  setZoomScale: (scale: number) => void;
 };
 ```
 

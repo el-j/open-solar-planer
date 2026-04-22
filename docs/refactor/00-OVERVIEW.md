@@ -6,18 +6,34 @@
 
 ---
 
-## Prerequisites — Merge First
+## Upstream Merge — Completed ✅
 
-> ⚠️ **Do not start Phase 1 until the following branch has been merged to `main`:**
->
-> **`copilot/bugfix-mobile-drawing-sperrzonen`**
->
-> This branch (task `af62d0f2-1adf-4fd7-ad61-6f0d42720e5b`) is being worked on in parallel and fixes a bug with exclusion-zone (Sperrzone) drawing on mobile/touch devices. It likely modifies the pointer-event handlers (`handleCanvasPointerDown`, `handleCanvasPointerMove`, `handleCanvasPointerUp`) and/or adds `touch-action: none` styling to the canvas.
->
-> **After that branch is merged to `main`:**
-> 1. Rebase the `refactor/architecture-v2` branch onto the updated `main`
-> 2. Review what the mobile fix changed in `App.tsx` and carry those exact changes faithfully into `useDragHandlers` (Phase 5)
-> 3. Ensure the fix is preserved in the new `CanvasArea` component (Phase 6) — especially any `touch-action` inline styles and pointer-capture calls
+Branch `copilot/bugfix-mobile-drawing-sperrzonen` (commit `11d38ac`) has been merged into `main` and this refactor branch has been rebased on top of it.
+
+**What the mobile bugfix added** (all changes must survive the refactor):
+
+| Addition | Lives in refactored code |
+|----------|-------------------------|
+| `clampZoneToBounds()` pure function | `src/utils/clampZoneToBounds.ts` |
+| `zoomScale` state (pinch-to-zoom, default `1`) | `CanvasStore` |
+| `activePointers` ref (`Map<pointerId, {x,y}>`) | `useDragHandlers` (local ref) |
+| `lastPinchDist` ref | `useDragHandlers` (local ref) |
+| Pinch-zoom logic in pointer down/move | `useDragHandlers` |
+| `handleCanvasPointerCancel` | `useDragHandlers` → wired in `CanvasArea` |
+| Clamped `pxX/pxY` to canvas rect bounds | `useDragHandlers` |
+| `clampZoneToBounds` used in pointer move | `useDragHandlers` |
+| Guard: ignore second pointer mid-drag | `useDragHandlers` |
+| Optional chaining `setPointerCapture?.()` | `useDragHandlers` |
+| `pxToCm` divides by `scaleFactor * zoomScale` | `pxToCm(px, effectiveScale)` util |
+| `touch-none` class on outer container | `CanvasArea` |
+| `overscrollBehavior: 'none'` on outer container | `CanvasArea` |
+| `transform: scale(zoomScale)` on canvas div | `CanvasArea` |
+| Floating FAB toolbar (`data-testid="floating-toolbar"`) | `FabToolbar` component |
+| `data-testid="fab-select"` button | `FabToolbar` |
+| `data-testid="tool-draw-zone"` moved to FAB | `FabToolbar` |
+| `data-testid="fab-delete-selected"` button | `FabToolbar` |
+| Inline × delete handle on free panels (`data-testid="inline-panel-delete"`) | `FreePanelRenderer` |
+| Inline × delete handle on zones (`data-testid="inline-zone-delete"`) | `ExclusionZoneRenderer` |
 
 ---
 

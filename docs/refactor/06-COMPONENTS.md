@@ -173,6 +173,23 @@ Key attributes:
 
 ---
 
+### `src/components/Canvas/FabToolbar.tsx`
+
+**New — from bugfix.** Floating action button toolbar visible in free mode (bottom-right corner).
+
+Reads: `useModeStore` (activeTool), `useFreePlacementStore` (selectedId).  
+Actions: `setActiveTool`, `deleteSelected` (from `FreePlacementStore`).
+
+Key attributes:
+- `data-testid="floating-toolbar"` on container
+- `data-testid="fab-select"` on Select button — `aria-label="Select tool"`
+- `data-testid="tool-draw-zone"` on draw zone button — `aria-label="Draw exclusion zone"` 
+- `data-testid="fab-delete-selected"` on delete button (shown only when `selectedId !== null`) — `aria-label="Delete selected"`
+
+Renders only when `mode === 'free'`.
+
+---
+
 ### `src/components/Canvas/GridRenderer.tsx`
 
 Reads: `useLayout` hook, `usePanelStore` (panelPower), `useScaleFactor` hook, `useGapStore`.
@@ -193,6 +210,7 @@ Actions: `setSelectedId`.
 Each zone:
 - `data-testid="exclusion-zone"`
 - Conditionally shows label
+- When selected: inline × delete button with `data-testid="inline-zone-delete"` and `aria-label="Delete exclusion zone"`
 
 ---
 
@@ -204,6 +222,7 @@ Each panel:
 - `data-testid="free-panel"`
 - Calls `handlePanelPointerDown` from `useDragHandlers`
 - Uses `panelOverlapsZone` from utils to compute overlap state
+- When selected: inline × delete button with `data-testid="inline-panel-delete"` and `aria-label="Delete panel"`
 
 ---
 
@@ -243,6 +262,7 @@ Children (rendered inside the canvas div):
 - `<ExclusionZoneRenderer />` (when `mode === 'free'`)
 - `<FreePanelRenderer />` (when `mode === 'free'`)
 - `<EmptyStateOverlay />`
+- `<FabToolbar />` (when `mode === 'free'`, rendered in the outer container — positioned `absolute bottom-4 right-4 z-30`)
 
 ---
 
