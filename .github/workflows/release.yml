@@ -1,25 +1,97 @@
-name: Release Please
+name: Release
+
+# Creates a GitHub Release (with auto-generated release notes) when a clean
+# SemVer version lands on `main` — i.e. a `release/*` or `hotfix/*` branch
+# was merged in.
+#
+# Flow:
+#   1. GitVersion computes the version from git history (needs full fetch-depth).
+#   2. If the version is clean (no pre-release tag like -beta / -rc / -feat…)
+#      and the tag does not already exist, the workflow:
+#        a. Creates an annotated git tag  v<semVer>
+#        b. Creates a GitHub Release with auto-generated release notes.
+#   3. The ci.yml deploy job (which runs concurrently) takes care of Pages.
+#
+# Nothing in this workflow builds or deploys — versioning only.
+#
+# Manual trigger:
+#   You can also trigger this workflow manually from the GitHub Actions UI
+#   (workflow_dispatch) to force-cut a release on the current HEAD of main.
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write
+  pull-requests: read
 
 jobs:
-  release-please:
-    name: Release Please
+  release:
+    name: Tag & Release
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - name: Run Release Please
-        id: release
-        uses: googleapis/release-please-action@v4
+      - name: Checkout (full history required by GitVersion)
+        uses: actions/checkout@v4
         with:
-          release-type: node
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+          fetch-depth: 0
+          # Use a token that can push tags back to the repo.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: '5.x'
+
+      - name: Execute GitVersion
+        id: gv
+        uses: gittools/actions/gitversion/execute@v3
+        with:
+          useConfigFile: true
+
+      - name: Decide whether to cut a release
+        id: decide
+        run: |
+          SEMVER="${{ steps.gv.outputs.semVer }}"
+          PRE="${{ steps.gv.outputs.preReleaseTag }}"
+          TAG="v${SEMVER}"
+
+          echo "Computed version : $SEMVER"
+          echo "Pre-release label: ${PRE:-<none>}"
+
+          # Only release clean versions (no -beta, -rc, -feat…, etc.)
+          if [ -n "$PRE" ]; then
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping – pre-release build ($SEMVER)"
+            exit 0
+          fi
+
+          # Skip if the tag already exists (idempotent re-runs).
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping – tag $TAG already exists"
+            exit 0
+          fi
+
+          echo "is_release=true" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}"      >> "$GITHUB_OUTPUT"
+          echo "Will create release $TAG"
+
+      - name: Create annotated git tag
+        if: steps.decide.outputs.is_release == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.decide.outputs.tag }}" \
+                  -m "Release ${{ steps.decide.outputs.tag }}"
+          git push origin "${{ steps.decide.outputs.tag }}"
+
+      - name: Create GitHub Release
+        if: steps.decide.outputs.is_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:               ${{ steps.decide.outputs.tag }}
+          name:                   ${{ steps.decide.outputs.tag }}
+          generate_release_notes: true   # uses merged-PR titles & descriptions
+          make_latest:            true
