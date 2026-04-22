@@ -1,5 +1,17 @@
 name: Release Please
 
+# Release Please watches commits on main and maintains a "release PR" that
+# bumps package.json version and updates CHANGELOG.md based on Conventional
+# Commits.  Merging that PR creates a GitHub Release + git tag.
+#
+# This is SEPARATE from the Pages deployment (handled by ci.yml).
+# Relationship:
+#   feat/fix commit → main → Release Please updates its PR
+#   release PR merged → main → ci.yml deploys to Pages  AND
+#                            → this workflow creates a GitHub Release + tag
+#
+# Nothing here builds or deploys — it only manages versioning.
+
 on:
   push:
     branches: [main]
