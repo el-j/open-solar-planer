@@ -124,4 +124,44 @@ describe('Free placement mode', () => {
     const totalPanels = screen.getByTestId('total-panels');
     expect(Number(totalPanels.textContent)).toBe(2);
   });
+
+  it('pointercancel during zone draw discards zone and resets activeTool to select', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+
+    // Activate draw-zone tool via FAB
+    await user.click(screen.getByTestId('tool-draw-zone'));
+
+    const canvas = screen.getByTestId('canvas');
+    // Start drawing a zone
+    fireEvent.pointerDown(canvas, { clientX: 50, clientY: 50, pointerId: 1 });
+    // Browser takes over (e.g. scroll gesture) — cancel the pointer
+    fireEvent.pointerCancel(canvas, { pointerId: 1 });
+
+    // In-progress zone must be discarded
+    expect(screen.queryAllByTestId('exclusion-zone').length).toBe(0);
+    // activeTool resets to select: next canvas tap places a panel (not a zone)
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 2 });
+    expect(screen.getAllByTestId('free-panel').length).toBeGreaterThan(0);
+  });
+
+  it('ignores a second pointer while dragging a panel', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+
+    const canvas = screen.getByTestId('canvas');
+    // Place one panel
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+    expect(screen.getAllByTestId('free-panel').length).toBe(1);
+
+    // Start dragging that panel (sets dragRef.current)
+    const panel = screen.getAllByTestId('free-panel')[0];
+    fireEvent.pointerDown(panel, { clientX: 100, clientY: 100, pointerId: 1 });
+
+    // Second pointer while dragging — should be ignored (no new panel added)
+    fireEvent.pointerDown(panel, { clientX: 150, clientY: 150, pointerId: 2 });
+    expect(screen.getAllByTestId('free-panel').length).toBe(1);
+  });
 });
