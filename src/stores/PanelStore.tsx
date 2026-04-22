@@ -47,9 +47,7 @@ export function PanelProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const markCustom = () => {
-    if (selectedPreset !== 'custom') setSelectedPreset('custom');
-  };
+  const markCustom = () => setSelectedPreset('custom');
 
   return (
     <PanelContext.Provider value={{

@@ -16,7 +16,8 @@ export function useScaleFactor(): number {
   return useMemo(() => {
     const availableW = containerSize.width - 40;
     const availableH = containerSize.height - 40;
-    if (roofWidth === 0 || roofHeight === 0) return 1;
+    // Guard against zero or negative dimensions (e.g. invalid user input)
+    if (roofWidth <= 0 || roofHeight <= 0) return 1;
     return Math.min(availableW / roofWidth, availableH / roofHeight);
   }, [containerSize, roofWidth, roofHeight]);
 }

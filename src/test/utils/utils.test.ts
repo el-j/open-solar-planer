@@ -77,6 +77,10 @@ describe('pxToCm', () => {
     expect(pxToCm(100, 0)).toBe(0);
   });
 
+  it('returns 0 when effectiveScale is negative (guard)', () => {
+    expect(pxToCm(100, -2)).toBe(0);
+  });
+
   it('handles fractional scale', () => {
     expect(pxToCm(50, 0.5)).toBe(100);
   });
@@ -112,11 +116,9 @@ describe('generateId', () => {
   });
 
   it('produces different IDs for sequential calls with Date.now mock', () => {
-    // Two rapid calls — result depends on timing but both must be non-empty strings
+    // Sequential calls must produce unique IDs (counter suffix guarantees this)
     const id1 = generateId('panel');
-    const id2 = generateId('zone');
-    expect(typeof id1).toBe('string');
-    expect(typeof id2).toBe('string');
-    expect(id1.length).toBeGreaterThan('panel-'.length);
+    const id2 = generateId('panel');
+    expect(id1).not.toBe(id2);
   });
 });
