@@ -1,26 +1,52 @@
 name: CI
 
+# Runs on every push to every branch and on PRs targeting main or develop.
+# Jobs:
+#   version          — compute SemVer via GitVersion (needs full git history)
+#   lint-test-build  — lint, test, build
+#   deploy           — upload to GitHub Pages (main branch only, after lint-test-build passes)
+
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
-# Lint/test/build needs read; Pages deploy needs pages + id-token write.
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Only one Pages deployment runs at a time; never cancel an in-progress deploy.
-concurrency:
-  group: pages
-  cancel-in-progress: false
+  contents: read   # default; deploy job needs pages + id-token (declared inline)
 
 jobs:
+  # ─── Version ────────────────────────────────────────────────────────────────
+  version:
+    name: Compute Version (GitVersion)
+    runs-on: ubuntu-latest
+    outputs:
+      semVer:          ${{ steps.gv.outputs.semVer }}
+      majorMinorPatch: ${{ steps.gv.outputs.majorMinorPatch }}
+      preReleaseTag:   ${{ steps.gv.outputs.preReleaseTag }}
+      fullSemVer:      ${{ steps.gv.outputs.fullSemVer }}
+    steps:
+      - name: Checkout (full history required by GitVersion)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: '5.x'
+
+      - name: Execute GitVersion
+        id: gv
+        uses: gittools/actions/gitversion/execute@v3
+        with:
+          useConfigFile: true   # reads GitVersion.yml at repo root
+
+  # ─── Lint / Test / Build ────────────────────────────────────────────────────
   lint-test-build:
     name: Lint, Test & Build
     runs-on: ubuntu-latest
+    needs: version
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,25 +68,30 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_APP_VERSION: ${{ needs.version.outputs.semVer }}
 
       - name: Setup GitHub Pages
-        # Only configure Pages on pushes to main (not on PRs).
+        # Only needed for the Pages upload step that follows.
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        # Upload the dist/ folder so the deploy job can publish it.
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
+  # ─── Deploy to GitHub Pages (main only) ─────────────────────────────────────
   deploy:
     name: Deploy to GitHub Pages
-    # Only deploy on direct pushes to main — not on PRs.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: lint-test-build
     runs-on: ubuntu-latest
+    # Pages deploy requires elevated permissions — scoped to this job only.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

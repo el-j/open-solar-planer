@@ -1,0 +1,44 @@
+name: Seed GitHub Issues
+
+# Run this ONCE to bootstrap labels, milestones, and all 34 sprint issues
+# from scripts/seed-github-issues.mjs.
+#
+# Idempotent — already-existing items are skipped safely.
+#
+# Trigger manually from:
+#   GitHub → Actions → "Seed GitHub Issues" → Run workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — print what would be created without writing anything'
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  seed:
+    name: Seed Labels, Milestones & Sprint Issues
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run seed script
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="--dry-run"
+          fi
+          node scripts/seed-github-issues.mjs $ARGS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

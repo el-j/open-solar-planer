@@ -1,0 +1,76 @@
+name: Sprint Task
+description: A planned sprint deliverable from the roadmap (maintainers)
+labels: ["sprint", "status/planned"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for sprint deliverables that are part of the planned roadmap.
+        Most users should use **Feature Request** or **Bug Report** instead.
+
+  - type: input
+    id: sprint
+    attributes:
+      label: Sprint
+      placeholder: "Sprint 3 — Undo/Redo Stack"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase / Milestone
+      options:
+        - "Phase 0 – Canvas Engine (v1.1)"
+        - "Phase 1 – Polish & Panel Library (v1.2–v1.4)"
+        - "Phase 2 – Multi-Area Projects (v2.0–v2.2)"
+        - "Phase 3 – Cost Planning & BOM (v2.3–v2.5)"
+        - "Phase 4 – Pitched Roofs & Pseudo-3D (v3.0–v3.2)"
+        - "Phase 5 – Photo-to-Plan (v3.3–v3.5)"
+        - "Phase 6 – Full 3D Editor (v4.0–v4.2)"
+        - "Phase 7 – Off-Grid & Hybrid (v4.3–v5.0)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Sprint Goal
+      placeholder: One sentence describing what this sprint delivers.
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+      description: |
+        Paste as a checklist. Each line becomes a task.
+      placeholder: |
+        - [ ] Implement `useUndoRedo<T>` hook
+        - [ ] Wire into panel placement
+        - [ ] Add keyboard shortcuts Ctrl+Z / Ctrl+Y
+    validations:
+      required: true
+
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of Done
+      placeholder: The sprint is complete when…
+    validations:
+      required: true
+
+  - type: dropdown
+    id: branch_type
+    attributes:
+      label: Expected branch type
+      options:
+        - "feature/<name>"
+        - "fix/<name>"
+        - "bugfix/<name>"
+        - "hotfix/<name>"
+        - "release/<ver>"
+    validations:
+      required: true
