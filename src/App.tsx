@@ -38,7 +38,7 @@ export default function App() {
 
   // Drag state refs (avoids re-renders mid-drag)
   const dragRef = useRef<{
-    type: 'panel' | 'zone-draw';
+    type: 'panel' | 'zone-draw' | 'zone-move';
     id?: string;
     startX: number; // canvas px
     startY: number; // canvas px
@@ -215,6 +215,22 @@ export default function App() {
         setExclusionZones(prev =>
           prev.map(z => (z.id === zid ? { ...z, ...clamped } : z)),
         );
+      } else if (dragRef.current.type === 'zone-move' && dragRef.current.id) {
+        const dxCm = pxToCm(pxX - dragRef.current.startX);
+        const dyCm = pxToCm(pxY - dragRef.current.startY);
+        const id = dragRef.current.id;
+        setExclusionZones(prev =>
+          prev.map(z => {
+            if (z.id !== id) return z;
+            const c = clampPanel(
+              (dragRef.current!.origX ?? z.x) + dxCm,
+              (dragRef.current!.origY ?? z.y) + dyCm,
+              z.width,
+              z.height,
+            );
+            return { ...z, ...c };
+          }),
+        );
       } else if (dragRef.current.type === 'panel' && dragRef.current.id) {
         const dxCm = pxToCm(pxX - dragRef.current.startX);
         const dyCm = pxToCm(pxY - dragRef.current.startY);
@@ -245,6 +261,8 @@ export default function App() {
       // Discard zones smaller than 2×2 cm — too small to be meaningful (accidental click without drag)
       setExclusionZones(prev => prev.filter(z => z.id !== zid || (z.width >= 2 && z.height >= 2)));
       setActiveTool('select');
+      // Auto-select the newly drawn zone so the user can immediately see and adjust its properties
+      setSelectedId(zid);
     }
     dragRef.current = null;
   }, []);
@@ -278,6 +296,26 @@ export default function App() {
         startY: e.clientY - rect.top,
         origX: panel.x,
         origY: panel.y,
+      };
+      (canvasRef.current as HTMLDivElement).setPointerCapture?.(e.pointerId);
+    },
+    [mode],
+  );
+
+  const handleZonePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>, zone: ExclusionZone) => {
+      if (mode !== 'free') return;
+      e.stopPropagation();
+      if (dragRef.current) return;
+      setSelectedId(zone.id);
+      const rect = canvasRef.current!.getBoundingClientRect();
+      dragRef.current = {
+        type: 'zone-move',
+        id: zone.id,
+        startX: e.clientX - rect.left,
+        startY: e.clientY - rect.top,
+        origX: zone.x,
+        origY: zone.y,
       };
       (canvasRef.current as HTMLDivElement).setPointerCapture?.(e.pointerId);
     },
@@ -533,6 +571,46 @@ export default function App() {
               </h2>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
+                  <label className="block text-xs text-slate-500 mb-1">X-Position (cm)</label>
+                  <input
+                    type="number"
+                    value={selectedPanel.x}
+                    onChange={e =>
+                      setFreePanels(prev =>
+                        prev.map(p => {
+                          if (p.id !== selectedPanel.id) return p;
+                          const c = clampPanel(Number(e.target.value), p.y, p.width, p.height);
+                          return { ...p, x: c.x };
+                        })
+                      )
+                    }
+                    className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                    aria-label="Selected panel X position in cm"
+                    data-testid="selected-panel-x"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Y-Position (cm)</label>
+                  <input
+                    type="number"
+                    value={selectedPanel.y}
+                    onChange={e =>
+                      setFreePanels(prev =>
+                        prev.map(p => {
+                          if (p.id !== selectedPanel.id) return p;
+                          const c = clampPanel(p.x, Number(e.target.value), p.width, p.height);
+                          return { ...p, y: c.y };
+                        })
+                      )
+                    }
+                    className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                    aria-label="Selected panel Y position in cm"
+                    data-testid="selected-panel-y"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
                   <label className="block text-xs text-slate-500 mb-1">Breite (cm)</label>
                   <input
                     type="number"
@@ -609,6 +687,78 @@ export default function App() {
                   aria-label="Exclusion zone label"
                   placeholder="z.B. Kunststoff-Dach"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">X-Position (cm)</label>
+                  <input
+                    type="number"
+                    value={selectedZone.x}
+                    onChange={e =>
+                      setExclusionZones(prev =>
+                        prev.map(z => {
+                          if (z.id !== selectedZone.id) return z;
+                          const c = clampPanel(Number(e.target.value), z.y, z.width, z.height);
+                          return { ...z, x: c.x };
+                        })
+                      )
+                    }
+                    className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                    aria-label="Exclusion zone X position in cm"
+                    data-testid="selected-zone-x"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Y-Position (cm)</label>
+                  <input
+                    type="number"
+                    value={selectedZone.y}
+                    onChange={e =>
+                      setExclusionZones(prev =>
+                        prev.map(z => {
+                          if (z.id !== selectedZone.id) return z;
+                          const c = clampPanel(z.x, Number(e.target.value), z.width, z.height);
+                          return { ...z, y: c.y };
+                        })
+                      )
+                    }
+                    className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                    aria-label="Exclusion zone Y position in cm"
+                    data-testid="selected-zone-y"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Breite (cm)</label>
+                  <input
+                    type="number"
+                    value={selectedZone.width}
+                    onChange={e =>
+                      setExclusionZones(prev =>
+                        prev.map(z => z.id === selectedZone.id ? { ...z, width: Math.max(0, Number(e.target.value)) } : z)
+                      )
+                    }
+                    className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                    aria-label="Exclusion zone width in cm"
+                    data-testid="selected-zone-width"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Höhe (cm)</label>
+                  <input
+                    type="number"
+                    value={selectedZone.height}
+                    onChange={e =>
+                      setExclusionZones(prev =>
+                        prev.map(z => z.id === selectedZone.id ? { ...z, height: Math.max(0, Number(e.target.value)) } : z)
+                      )
+                    }
+                    className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                    aria-label="Exclusion zone height in cm"
+                    data-testid="selected-zone-height"
+                  />
+                </div>
               </div>
               <button
                 onClick={handleDeleteSelected}
@@ -742,7 +892,7 @@ export default function App() {
                 {exclusionZones.map(zone => (
                   <div
                     key={zone.id}
-                    className={`absolute border-2 flex items-center justify-center cursor-pointer transition-colors ${selectedId === zone.id ? 'border-orange-500 bg-orange-300/50' : 'border-orange-400 bg-orange-200/40 hover:bg-orange-200/60'}`}
+                    className={`absolute border-2 flex items-center justify-center cursor-grab active:cursor-grabbing select-none transition-colors ${selectedId === zone.id ? 'border-orange-500 bg-orange-300/50' : 'border-orange-400 bg-orange-200/40 hover:bg-orange-200/60'}`}
                     style={{
                       left: `${zone.x * scaleFactor}px`,
                       top: `${zone.y * scaleFactor}px`,
@@ -750,10 +900,7 @@ export default function App() {
                       height: `${zone.height * scaleFactor}px`,
                     }}
                     data-testid="exclusion-zone"
-                    onPointerDown={e => {
-                      e.stopPropagation();
-                      setSelectedId(zone.id);
-                    }}
+                    onPointerDown={e => handleZonePointerDown(e, zone)}
                   >
                     {zone.label && zone.height * scaleFactor > 16 && (
                       <span className="text-orange-800 text-xs font-medium px-1 truncate max-w-full">{zone.label}</span>
@@ -876,6 +1023,105 @@ export default function App() {
                   <Trash2 className="w-5 h-5" />
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Bottom HUD — position & size controls for selected item in free mode */}
+          {mode === 'free' && (selectedPanel !== null || selectedZone !== null) && (
+            <div
+              className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-sm border-t border-slate-300 shadow-lg"
+              data-testid="selection-hud"
+            >
+              <div className="flex items-center gap-x-3 gap-y-1 px-3 py-2 pr-16 flex-wrap text-xs">
+                <span className="font-semibold text-slate-500 uppercase shrink-0">
+                  {selectedPanel ? 'Modul' : 'Sperrzone'}
+                </span>
+                <label className="flex items-center gap-1 shrink-0">
+                  <span className="text-slate-500 font-medium">X</span>
+                  <input
+                    type="number"
+                    className="w-16 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs"
+                    value={selectedPanel ? selectedPanel.x : selectedZone!.x}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      if (selectedPanel) {
+                        setFreePanels(prev => prev.map(p => {
+                          if (p.id !== selectedPanel.id) return p;
+                          return { ...p, x: clampPanel(val, p.y, p.width, p.height).x };
+                        }));
+                      } else {
+                        setExclusionZones(prev => prev.map(z => {
+                          if (z.id !== selectedZone!.id) return z;
+                          return { ...z, x: clampPanel(val, z.y, z.width, z.height).x };
+                        }));
+                      }
+                    }}
+                    aria-label="Selected item X position in cm"
+                    data-testid="hud-x"
+                  />
+                </label>
+                <label className="flex items-center gap-1 shrink-0">
+                  <span className="text-slate-500 font-medium">Y</span>
+                  <input
+                    type="number"
+                    className="w-16 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs"
+                    value={selectedPanel ? selectedPanel.y : selectedZone!.y}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      if (selectedPanel) {
+                        setFreePanels(prev => prev.map(p => {
+                          if (p.id !== selectedPanel.id) return p;
+                          return { ...p, y: clampPanel(p.x, val, p.width, p.height).y };
+                        }));
+                      } else {
+                        setExclusionZones(prev => prev.map(z => {
+                          if (z.id !== selectedZone!.id) return z;
+                          return { ...z, y: clampPanel(z.x, val, z.width, z.height).y };
+                        }));
+                      }
+                    }}
+                    aria-label="Selected item Y position in cm"
+                    data-testid="hud-y"
+                  />
+                </label>
+                <label className="flex items-center gap-1 shrink-0">
+                  <span className="text-slate-500 font-medium">B</span>
+                  <input
+                    type="number"
+                    className="w-16 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs"
+                    value={selectedPanel ? selectedPanel.width : selectedZone!.width}
+                    onChange={e => {
+                      const val = Math.max(0, Number(e.target.value));
+                      if (selectedPanel) {
+                        setFreePanels(prev => prev.map(p => p.id === selectedPanel.id ? { ...p, width: val } : p));
+                      } else {
+                        setExclusionZones(prev => prev.map(z => z.id === selectedZone!.id ? { ...z, width: val } : z));
+                      }
+                    }}
+                    aria-label="Selected item width in cm"
+                    data-testid="hud-width"
+                  />
+                </label>
+                <label className="flex items-center gap-1 shrink-0">
+                  <span className="text-slate-500 font-medium">H</span>
+                  <input
+                    type="number"
+                    className="w-16 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs"
+                    value={selectedPanel ? selectedPanel.height : selectedZone!.height}
+                    onChange={e => {
+                      const val = Math.max(0, Number(e.target.value));
+                      if (selectedPanel) {
+                        setFreePanels(prev => prev.map(p => p.id === selectedPanel.id ? { ...p, height: val } : p));
+                      } else {
+                        setExclusionZones(prev => prev.map(z => z.id === selectedZone!.id ? { ...z, height: val } : z));
+                      }
+                    }}
+                    aria-label="Selected item height in cm"
+                    data-testid="hud-height"
+                  />
+                </label>
+                <span className="text-slate-400 shrink-0">cm</span>
+              </div>
             </div>
           )}
         </div>
