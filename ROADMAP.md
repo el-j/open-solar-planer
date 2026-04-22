@@ -27,6 +27,8 @@
 > **This is the single most impactful improvement to the tool.**  
 > A real solar installation spans multiple surfaces, uses different panels per surface, and needs a 3D sanity-check view.  
 > Everything else (cost planning, string design, yield simulation) builds on top of this canvas engine.  
+> **All rendering is pure SVG — no Three.js, no WebGL, no canvas 2D.**  
+> The isometric "fake 3D" view is the definitive 3D experience and must be excellent before anything else is considered.  
 > **Full technical specification:** [`docs/CANVAS-ENGINE.md`](./docs/CANVAS-ENGINE.md)
 
 ### 0.5.0 — Project & Area Data Model
@@ -69,22 +71,24 @@
 - [ ] Pre-built polygon templates: L-shape, T-shape, trapezoid, triangle, custom
 - [ ] Grid layout recalculates instantly as polygon vertices are dragged
 
-### 0.5.5 — 2D→3D Isometric View (CSS/SVG, no Three.js)
-- [ ] `IsoView.tsx` — pure SVG isometric projection (zero new dependencies)
-- [ ] Building wizard: enter footprint W × D × H → procedural isometric box
-- [ ] Each Area mapped to a building face; panel layout rendered using isometric matrix transforms
-- [ ] Toggle 2D plan ↔ isometric preview with single button
-- [ ] Sun direction arrow at selected date/time (computed from `solarPosition()`)
-- [ ] Simple cast-shadow polygons for chimneys/dormers; shaded panels highlighted amber
-- [ ] Export isometric view as SVG (for permit documentation)
+### 0.5.5 — SVG Isometric View — The Definitive "Fake 3D"
+- [ ] **Building Wizard**: enter footprint W × D × H + roof type (flat/gable/hip/shed/mansard) → procedural face geometry, zero new dependencies
+- [ ] Each Area assigned to a building face; `tilt_deg` + `azimuth_deg` auto-sync from face descriptor
+- [ ] Panel layout rendered as SVG `<polygon>` via isometric transform (`toIso()`, `rectToIsoPolygon()`)
+- [ ] Four viewpoint presets: NE, NW, SE, SW — switch animates via CSS transition (200 ms)
+- [ ] Toggle `2D Plan ↔ Isometric` with single button (`I` key shortcut)
+- [ ] Clicking a panel in isometric view → jumps to 2D mode with that panel selected
+- [ ] Sun direction arrow computed from `solarPosition(lat, lon, dateTime)`
+- [ ] Shadow polygons per obstacle (chimney, dormer, adjacent face) — semi-transparent SVG overlay
+- [ ] Panels inside a shadow polygon tinted amber; tooltip shows estimated irradiance loss
+- [ ] Export isometric view as clean, annotated SVG (for permit documentation)
+- [ ] All areas + panels + labels legible at A4 print size
+- [ ] `aria-description` summary on `<svg>` element; panel click/keyboard accessible
 
-### 0.5.6 — Three.js 3D Scene (lazy-loaded, Phase 6 preview)
-- [ ] `ThreeScene.tsx` loaded via `React.lazy` — only downloaded when user clicks "Open 3D View"
-- [ ] Building geometry procedurally generated from wizard inputs (flat/gable/hip/shed/mansard)
-- [ ] Each panel rendered as `BoxGeometry` on the correct building face
-- [ ] Orbit controls (mouse + touch), sun directional light from `solarPosition()`
-- [ ] Real-time shadow casting per Three.js sun position
-- [ ] Export scene as glTF 2.0
+### 0.5.6 — Quality Gate Before Any Further Visualisation
+> **No Three.js. No WebGL. No canvas 2D.** All views are SVG.  
+> The isometric SVG view must pass the §9.9 quality bar (12 checkboxes) and be live in production for ≥ 3 months before any alternative visualisation strategy is even evaluated.  
+> See `docs/CANVAS-ENGINE.md` §10 for the full reasoning and future gate criteria.
 
 ---
 

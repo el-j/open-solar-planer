@@ -1,7 +1,12 @@
 # Canvas Engine — Deep Technical Plan
 
-> **Priority: HIGHEST NEXT STEP** — This document specifies the complete design for the multi-area 2D + 3D graphical solar panel planner.  
-> Everything in this file feeds directly into `SPRINT-PLAN.md` Sprints 11–23 and must be implemented before any cost/BOM or 3D scene work.
+> **Priority: HIGHEST NEXT STEP** — This document specifies the complete design for the multi-area 2D + isometric solar panel planner.  
+> Everything in this file feeds directly into `SPRINT-PLAN.md` Sprints 11–23 and must be implemented before any cost/BOM or advanced visualisation work.
+>
+> **Rendering philosophy:** All views — 2D plan, isometric "fake 3D", shadow preview — are implemented with pure SVG and CSS transforms.  
+> No WebGL, no Three.js, no canvas 2D API (except for raster image overlay).  
+> The isometric view is the definitive "3D" experience and must be excellent before any other visualisation is considered.  
+> WebGL/Three.js is **not on the roadmap**; SVG isometric done well looks better, loads instantly, and remains accessible.
 
 ---
 
@@ -14,7 +19,7 @@ A real solar installation has:
 - **Different panel models per surface** (larger panels on the main roof, smaller on the shed)
 - **Mixed layout modes per surface** (grid auto-fill on the main roof, free placement on a complex L-shaped surface)
 - **Individual panel rotation** (landscape on one row, portrait on the next)
-- **3D context** so the user can sanity-check tilt, shading, and orientation visually
+- **3D context** so the user can sanity-check tilt, shading, and orientation visually — achieved with an SVG isometric projection, no 3D library needed
 
 This document specifies the full canvas engine redesign to support all of the above.
 
@@ -571,13 +576,16 @@ function handleWheel(e: WheelEvent, state: ViewportState, containerRect: DOMRect
 └─────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────┐
-│  Mode C: 3D Isometric (Phase 4)             │
+│  Mode C: Isometric / "Fake 3D" (SVG/CSS)   │
 │  Areas mapped to building faces.            │
 │  Tilt + azimuth encoded geometrically.      │
+│  Pure SVG — zero extra dependencies.        │
+│  This IS the 3D view. Make it excellent.    │
 └─────────────────────────────────────────────┘
 ```
 
-The user switches mode via a toolbar toggle. Only one mode is active at a time.
+The user switches mode via a toolbar toggle (`2D Plan` | `Overview` | `Isometric`). Only one mode is active at a time.  
+**Mode C is the definitive visual "3D" experience** — it must be polished to a very high standard before any other visualisation strategy is considered.
 
 ### 5.2 Overview Canvas Layout Algorithm
 
@@ -812,121 +820,220 @@ The outline-draw UI offers quick templates:
 
 ---
 
-## 9 · 3D Isometric View (Phase 4 — CSS/SVG)
+## 9 · Isometric View — The Definitive "Fake 3D" (SVG/CSS)
 
-### 9.1 Why Isometric Before Three.js
+The isometric view is **not a stepping stone to WebGL** — it *is* the 3D view.  
+Done well in SVG it looks sharper, loads in milliseconds, stays zoomable/printable, and is accessible to screen readers.  
+The goal is to make it look so good that users never miss a polygon 3D engine.
 
-An isometric SVG view can be built with zero new dependencies.  
-It gives users the 3D mental model without the bundle cost of Three.js (~500 KB gzipped).  
-Three.js is added in Phase 6 once users need true orbit camera and shadows.
+### 9.1 Rendering Technology
+
+| Choice | Reason |
+|--------|--------|
+| Pure SVG `<polygon>` + `<g transform>` | Instant load (0 KB extra), crisp at any DPI, exportable as SVG |
+| CSS `perspective` + `transform: rotateX/Y` | Alternative for the building shell faces — browser-composited, GPU-accelerated, no JS |
+| No WebGL, no Three.js, no canvas 2D | Avoids 500 KB+ bundle cost, avoids ugly pixelated look at high zoom, avoids poor accessibility |
+
+**Hybrid approach:** Use CSS 3D transforms for the building shell faces (walls, roof planes) since the browser compositor handles depth-sorting and smooth scrolling for free. Use SVG polygons rendered within those faces for the actual panels, exclusion zones, and labels — because SVG scales perfectly and supports pointer events natively.
 
 ### 9.2 Isometric Transform
 
-Standard 2:1 isometric projection:
+Standard 2:1 isometric projection, all in SVG coordinate space:
 
 ```
-ISO_X = (world_x - world_y) * cos(30°)   = (world_x - world_y) * 0.866
-ISO_Y = (world_x + world_y) * sin(30°) - world_z * 1   = (world_x + world_y) * 0.5 - world_z
+ISO_X = (world_x - world_y) × cos(30°)   ≈ (world_x - world_y) × 0.866
+ISO_Y = (world_x + world_y) × sin(30°) − world_z   ≈ (world_x + world_y) × 0.5 − world_z
 ```
 
-Where `world_z` is the height above the base plane in cm.
+Where `world_z` is the height above the base plane in cm (wall height, panel thickness).
 
 ```typescript
+// src/canvas3d/isoTransform.ts
+
 export interface IsoPoint { x: number; y: number; }
 export interface World3D   { x: number; y: number; z: number; }
 
-export function toIso(p: World3D): IsoPoint {
+const COS30 = Math.cos(Math.PI / 6); // 0.866
+const SIN30 = Math.sin(Math.PI / 6); // 0.5
+
+export function toIso(p: World3D, scale: number = 1): IsoPoint {
   return {
-    x: (p.x - p.y) * Math.cos(Math.PI / 6),
-    y: (p.x + p.y) * Math.sin(Math.PI / 6) - p.z,
+    x: (p.x - p.y) * COS30 * scale,
+    y: (p.x + p.y) * SIN30 * scale - p.z * scale,
   };
 }
-```
 
-### 9.3 Building Model from Areas
-
-Each `Area` maps to a face on the isometric building:
-
-| Area surfaceType | Building face |
-|-----------------|--------------|
-| `flat-roof` | Top face |
-| `pitched-roof` | Sloped face (left or right of ridge) |
-| `facade` | Front, rear, or side wall face |
-| `ground` | Ground-level rectangle in front of building |
-
-The user enters building footprint (W × D cm) and wall height (H cm) in a "3D Building" settings panel.  
-The app procedurally generates the 3 visible faces (top, right, front) as isometric SVG polygons, then overlays each Area's panel layout using the isometric transform.
-
-### 9.4 Panel Rendering in Isometric View
-
-Each panel in an area is transformed:
-1. Start with panel `(x, y)` in Area local space (cm)
-2. Map to building face local 3D coordinates (applying tilt and azimuth)
-3. Apply `toIso()` transform
-4. Render as SVG polygon
-
-```typescript
-export function panelToIsoPolygon(
-  panel: { x: number; y: number; width: number; height: number },
-  buildingFaceTransform: (localX: number, localY: number) => World3D
+/** Convert the 4 corners of an axis-aligned panel rectangle to isometric screen points */
+export function rectToIsoPolygon(
+  x: number, y: number, w: number, h: number,
+  faceTransform: (lx: number, ly: number) => World3D,
+  scale: number
 ): IsoPoint[] {
-  const corners = [
-    { x: panel.x,              y: panel.y               },
-    { x: panel.x + panel.width, y: panel.y               },
-    { x: panel.x + panel.width, y: panel.y + panel.height },
-    { x: panel.x,              y: panel.y + panel.height },
-  ];
-  return corners.map(c => toIso(buildingFaceTransform(c.x, c.y)));
+  return [
+    { x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }
+  ].map(c => toIso(faceTransform(c.x, c.y), scale));
+}
+
+/** SVG points attribute string from IsoPoint[] */
+export function isoPointsAttr(pts: IsoPoint[]): string {
+  return pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
 }
 ```
 
-### 9.5 Isometric View Features (Phase 4)
+### 9.3 Building Model
 
-| Feature | Notes |
-|---------|-------|
-| Toggle 2D ↔ 3D view | Single button in toolbar |
-| Sun position overlay | Arrow showing sun direction at selected date/time |
-| Cast shadow preview | Simple 2D shadow polygon per obstacle, no raytracing |
-| Area labels | Float above each face |
-| Panel count + kWp per face | Show on each face in 3D |
-| Export isometric as SVG | For documentation / permit submissions |
-| Rotate building | Three azimuth presets: NE view, SE view, SW view |
+The user enters building geometry in a **Building Wizard** panel:
+
+| Field | Default | Notes |
+|-------|---------|-------|
+| Footprint width (cm) | 1000 | East-West span |
+| Footprint depth (cm) | 800 | North-South span |
+| Wall height (cm) | 300 | Eaves height |
+| Roof type | `flat` | flat / gable / hip / shed / mansard |
+| Ridge height (cm) | 150 | Gable/hip ridge above eaves |
+| Building azimuth (°) | 180 | Direction the front face points (180 = south) |
+
+From this the app generates a `BuildingGeometry` object with labelled 3D face descriptors — no physics, just geometry:
+
+```typescript
+export interface BuildingFace {
+  id: string;                      // 'roof-main', 'wall-south', 'roof-garage', …
+  label: string;
+  vertices3D: World3D[];           // 3 or 4 corners in building coordinate space
+  normal_deg: { azimuth: number; tilt: number }; // used for sun/shadow calc
+  areaId?: string;                 // which Area maps to this face
+}
+```
+
+### 9.4 Face → Area Mapping
+
+Each `Area` in the project is **assigned to a building face** via a dropdown in Area Settings:  
+`Face: [Main Roof ▾]` — or `Face: [None / standalone]` for areas not placed on the building model.
+
+When a face is assigned:
+- The area's `tilt_deg` and `azimuth_deg` are automatically synchronised from the face descriptor (can be overridden manually)
+- The area's outline is auto-cropped to fit within the face bounding box (with user-adjustable offset)
+
+### 9.5 Panel Rendering in Isometric View
+
+For each visible panel (grid or free mode):
+
+1. Retrieve its world-space position `(x, y)` within the Area (cm)
+2. Look up the `BuildingFace` for this area → get `faceTransform: (localX, localY) → World3D`
+3. Call `rectToIsoPolygon(x, y, w, h, faceTransform, scale)` → 4 `IsoPoint` screen coordinates
+4. Render as `<polygon points="..." fill={stringColour} stroke="#1d4ed8" />`
+
+The face transform encodes the face's tilt and position in building space so panels appear correctly sloped on pitched roofs.
+
+### 9.6 Building Roof Types — Face Transforms
+
+```typescript
+// src/canvas3d/buildingFaces.ts
+
+/** Flat roof: panels lie in the Z=wallHeight plane */
+export function flatRoofFaceTransform(
+  buildingX: number, buildingY: number, wallHeight: number
+): (lx: number, ly: number) => World3D {
+  return (lx, ly) => ({ x: buildingX + lx, y: buildingY + ly, z: wallHeight });
+}
+
+/** Gable roof south face: panels lie on a tilted plane */
+export function gableRoofSouthFaceTransform(
+  buildingX: number, buildingDepth: number,
+  wallHeight: number, ridgeHeight: number, tilt_deg: number
+): (lx: number, ly: number) => World3D {
+  const tilt_rad = (tilt_deg * Math.PI) / 180;
+  return (lx, ly) => ({
+    x: buildingX + lx,
+    y: buildingY + ly * Math.cos(tilt_rad),
+    z: wallHeight + ly * Math.sin(tilt_rad),
+  });
+}
+
+// Similarly: gableRoofNorthFaceTransform, hipRoofFaceTransform, shedRoofFaceTransform, …
+```
+
+### 9.7 View Controls (Isometric Mode)
+
+| Control | Action |
+|---------|--------|
+| Four preset viewpoint buttons | NE, NW, SE, SW — rotates the isometric building |
+| Scroll / pinch | Zoom the isometric SVG viewBox |
+| Drag on empty area | Pan |
+| Click on building face | Jump to that Area in 2D mode |
+| Click on panel | Select it (shows info tooltip) |
+| Toggle "Show panels" | Hide/show all panels for a cleaner building view |
+| Toggle "Show shadows" | Show/hide computed shadow polygons |
+| Export SVG button | Download the current isometric view as a vector file |
+
+Viewpoint rotation is implemented by swapping the `buildingFaceTransform` sign of axes — no matrix library needed.
+
+### 9.8 Sun Position & Shadow Overlay
+
+Sun azimuth and elevation are computed from `solarPosition(lat, lon, dateTime)` (a pure function, already planned in `ELECTRICAL-PHYSICS.md`).  
+Shadow computation is **2D polygon projection** — not raytracing:
+
+```typescript
+// src/canvas3d/shadowPolygon.ts
+
+export function computeShadowPolygon(
+  obstacle: { vertices3D: World3D[]; height: number },
+  sunAzimuth_deg: number,
+  sunElevation_deg: number,
+  scale: number
+): IsoPoint[] {
+  // Project each obstacle top vertex along sun direction to ground plane
+  const sunDx = Math.cos((sunAzimuth_deg * Math.PI) / 180);
+  const sunDy = Math.sin((sunAzimuth_deg * Math.PI) / 180);
+  const shadowLength = obstacle.height / Math.tan((sunElevation_deg * Math.PI) / 180);
+  return obstacle.vertices3D.map(v =>
+    toIso({ x: v.x + sunDx * shadowLength, y: v.y + sunDy * shadowLength, z: 0 }, scale)
+  );
+}
+```
+
+Shadow polygons are rendered as semi-transparent dark SVG polygons under the panels layer. Panels that intersect a shadow polygon are tinted amber as a visual warning.
+
+### 9.9 Quality Bar — What "Excellent" Means
+
+The isometric view is considered production-quality when:
+
+- [ ] All roof types (flat, gable, hip, shed, mansard) render correctly with their panels
+- [ ] Shadow polygons appear for chimneys, dormers, and adjacent roof edges
+- [ ] Shaded panels are highlighted amber with a tooltip showing estimated power loss
+- [ ] Four viewpoint presets (NE/NW/SE/SW) animate smoothly (CSS transition, 200 ms)
+- [ ] The view can be exported as a clean, label-annotated SVG suitable for a permit submission
+- [ ] Clicking any panel in isometric view jumps to 2D mode with that panel selected
+- [ ] The building outline, panels, labels, and north arrow are all legible at A4 print size
+- [ ] Screen reader receives a structural summary via `aria-description` on the `<svg>` element
 
 ---
 
-## 10 · 3D Scene Editor (Phase 6 — Three.js)
+## 10 · No WebGL / No Three.js — By Design
 
-*Detailed spec in `SPRINT-PLAN.md` Sprints 28–30. Summary here for context:*
+> **This section documents the deliberate architectural decision not to use Three.js or any WebGL-based renderer.**
 
-### 10.1 Technology
+### 10.1 Why Not Three.js
 
-- **`three`** + **`@react-three/fiber`** + **`@react-three/drei`**
-- Loaded as a **dynamic import** (`React.lazy + Suspense`) — only downloaded when user clicks "Open 3D View"
-- Target bundle size for 3D chunk: < 350 KB gzipped (tree-shaken Three.js)
+| Problem | Detail |
+|---------|--------|
+| **Bundle size** | `three` alone is ~600 KB minified. With `@react-three/fiber` + `@react-three/drei` + loaders the chunk easily exceeds 1 MB. This violates the "keep bundle small" project rule. |
+| **Visual quality** | A WebGL panel grid with default PBR materials looks plastic and toy-like. The SVG isometric view looks sharper, renders text crisply at any zoom, and can be styled with the same Tailwind tokens used everywhere else. |
+| **Accessibility** | A `<canvas>` element is a black box to screen readers. SVG elements carry semantic roles, aria-labels, and keyboard focus — all for free. |
+| **Complexity** | Maintaining a React + Three.js + R3F + Drei stack adds enormous surface area for bugs, version conflicts, and build-pipeline complications — for a feature that SVG already covers. |
+| **Portability** | SVG exports directly to a vector file. A Three.js scene requires a glTF pipeline and a server-side or client-side renderer to produce a printable document. |
+| **"Fake 3D" is fine** | A solar planner doesn't need a physically-based ray-tracing renderer. It needs a clear, unambiguous visualisation of tilt, azimuth, and panel layout — all achievable with isometric SVG. |
 
-### 10.2 Feature Parity with 2D
+### 10.2 Future Consideration Gate
 
-The 3D scene is a **viewer + light editor**, not a replacement for 2D placement.  
-Users place panels in 2D and see them in 3D.
+WebGL / Three.js **will not be added** until all of the following are true:
 
-| Capability | 2D Canvas | 3D Scene |
-|-----------|-----------|---------|
-| Place panels | ✅ Primary workflow | ❌ |
-| Move panels | ✅ | ❌ |
-| Draw exclusion zones | ✅ | ❌ |
-| View layout | ✅ | ✅ |
-| Visualise tilt + azimuth | ⚠️ (iso only) | ✅ |
-| Real-time shadow | ❌ | ✅ |
-| String colour highlighting | ✅ | ✅ |
-| Sun position slider | ❌ | ✅ |
-| Export | SVG / PNG | glTF / PNG |
+1. The SVG isometric view has been shipped and used in production for ≥ 3 months
+2. A real user need exists that SVG provably cannot meet (e.g., realistic shading simulation with thousands of scan lines)
+3. The additional capability justifies a permanent ~1 MB increase in bundle size
+4. A dedicated contributor volunteers to maintain the 3D stack long-term
 
-### 10.3 Panel Geometry in Three.js
-
-Each panel = a `THREE.BoxGeometry(width, thickness, height)` — 2 cm thick.  
-Panel face material = `THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.2 })`.  
-Panel back = grey.  
-Cell grid texture (optional) = a canvas-generated texture with panel cell lines.
+If all four gates are met, evaluate **CesiumJS** (for site/terrain) or a **custom WebGL shadow-volume renderer** — not a general-purpose scene graph like Three.js.
 
 ---
 
@@ -950,7 +1057,7 @@ Cell grid texture (optional) = a canvas-generated texture with panel cell lines.
 | Rotate -90° | Shift+R |
 | Toggle snap | S |
 | Toggle grid mode / free mode | G |
-| Toggle 2D / 3D view | 3 |
+| Toggle 2D plan / Isometric | I |
 | Help overlay | ? |
 | Fit to window | F |
 | Zoom in / out | + / - |
@@ -1002,8 +1109,8 @@ Grid layout announces total via a live region:
 | Drag 50 panels simultaneously | < 33 ms | Batch `MOVE_FREE_PANELS` action, one render |
 | Project load (50 areas × 50 panels) | < 100 ms | JSON parse + one reducer pass |
 | Undo / redo | < 10 ms | Shallow-clone `Project` (structural sharing) |
-| 3D isometric render (250 panels) | < 32 ms | SVG transform, no layout thrash |
-| Three.js initial load | < 2 s on 4G | Dynamic import, lazy chunk |
+| Isometric render (250 panels) | < 32 ms | SVG polygon, no layout thrash |
+| Isometric viewpoint switch (NE→SW) | < 200 ms | CSS transition on `<svg>` transform |
 
 **Profiling tool**: `window.__OSP_PERF = true` → enables `performance.measure()` markers visible in browser DevTools timeline.
 
@@ -1019,7 +1126,9 @@ Grid layout announces total via a live region:
 | `pointInPolygon` | Concave polygon, point on edge, degenerate polygon |
 | `snapToGrid` | Snap enabled/disabled, sub-pixel values |
 | `rotatedBoundingBox` | 0°, 90°, 45°, 180° |
-| `toIso` | Origin, positive x/y/z, negative values |
+| `toIso` | Origin, positive x/y/z, negative z (below ground) |
+| `rectToIsoPolygon` | Flat face, 30° tilt, 45° tilt |
+| `computeShadowPolygon` | Sun at zenith (no shadow), low sun, sun below horizon (no shadow) |
 | `projectReducer` | Each action type, undo stack depth, redo-after-new-action clears future |
 
 ### 13.2 Component Tests (`@testing-library/react`)
@@ -1050,8 +1159,10 @@ Grid layout announces total via a live region:
 | **S6** | Grid offset drag handle; cell-level exclusion toggle; polygon outline tool |
 | **S7** | Multi-select (box select, Shift+Click); copy/paste; keyboard nudge |
 | **S8** | String group colour overlay + MPPT assignment UI |
-| **S9** | Isometric view (CSS/SVG, no Three.js dependency) |
-| **S10** | Three.js 3D scene (lazy-loaded), orbit controls, sun position |
+| **S9** | Isometric view v1 — flat roof + gable; NE/SW viewpoints; panel polygons; SVG export |
+| **S10** | Isometric view v2 — hip/shed/mansard roofs; façade + ground faces; shadows; shaded-panel amber tint |
+| **S11** | Isometric view v3 — viewpoint animation; sun-time slider; click-panel-to-2D; print layout |
+| *(future)* | If §10.2 gates are met: evaluate alternative advanced visualisation approach |
 
 ---
 
