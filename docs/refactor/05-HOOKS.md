@@ -329,3 +329,17 @@ refactor: add composed hooks in src/hooks/
 - Hooks in `.ts` files cannot contain JSX — if you find yourself needing JSX in a hook, it should be a component instead.
 - `useDragHandlers` is the most complex hook. Take care with the discriminated union `DragState`: TypeScript should narrow the type inside `if (dragRef.current.type === 'panel')` blocks correctly only if the union is properly defined in Phase 1.
 - The `removeZone`-for-tiny-zones logic in `handleCanvasPointerUp` requires `removeZone` to be available from the store. Make sure `FreePlacementStore` exports a `removeZone` action (it does per Phase 4 spec).
+
+### ⚠️ Mobile Sperrzone Fix — Must Be Preserved
+
+Before this phase is implemented, branch **`copilot/bugfix-mobile-drawing-sperrzonen`** will have been merged into `main`. That branch fixes how exclusion zones are drawn on mobile/touch screens.
+
+**Action required before implementing `useDragHandlers`:**
+
+1. Run `git fetch origin main` and `git diff main -- src/App.tsx` (or review the merged PR) to see exactly what the mobile fix changed in the pointer-event handlers.
+2. Carry those changes **verbatim** into `useDragHandlers`. Common things to preserve:
+   - Any `touch-action: none` style on the canvas element (goes into `CanvasArea.tsx` in Phase 6)
+   - Any `e.preventDefault()` calls to suppress scroll during zone drawing
+   - Any adjustments to how `getBoundingClientRect()` coordinates are computed for touch events
+   - Any `pointerId` / `setPointerCapture` changes
+3. The mobile fix must not be lost during the structural move from `App.tsx` to `useDragHandlers`. This is the highest-risk line in the entire refactor.

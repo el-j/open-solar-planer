@@ -180,6 +180,47 @@ describe('generateId', () => {
 
 ---
 
+## Mobile Zone Drawing — Regression Test
+
+> ⚠️ **Required:** Once `copilot/bugfix-mobile-drawing-sperrzonen` is merged, review what new or updated tests it added for mobile Sperrzone drawing. Those tests **must still pass** after the refactor.
+>
+> If that branch does not add tests, add the following to `src/test/App.test.tsx` as a new describe block **after** the refactor is complete:
+
+```typescript
+describe('Mobile Sperrzone drawing (regression)', () => {
+  it('draws an exclusion zone via pointer events in free mode', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+    await user.click(screen.getByTestId('tool-draw-zone'));
+
+    const canvas = screen.getByTestId('canvas');
+    // Simulate pointer-based zone draw (start → move → up)
+    fireEvent.pointerDown(canvas, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.pointerMove(canvas, { clientX: 150, clientY: 150, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+
+    expect(screen.getAllByTestId('exclusion-zone').length).toBeGreaterThan(0);
+  });
+
+  it('discards zone smaller than 2×2 cm on pointer up without meaningful drag', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+    await user.click(screen.getByTestId('tool-draw-zone'));
+
+    const canvas = screen.getByTestId('canvas');
+    // Click without drag — should produce no zone
+    fireEvent.pointerDown(canvas, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+
+    expect(screen.queryAllByTestId('exclusion-zone').length).toBe(0);
+  });
+});
+```
+
+---
+
 ## Verification Checklist
 
 Run these commands and confirm all pass before closing this phase:

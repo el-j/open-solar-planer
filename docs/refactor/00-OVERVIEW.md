@@ -6,6 +6,21 @@
 
 ---
 
+## Prerequisites — Merge First
+
+> ⚠️ **Do not start Phase 1 until the following branch has been merged to `main`:**
+>
+> **`copilot/bugfix-mobile-drawing-sperrzonen`**
+>
+> This branch (task `af62d0f2-1adf-4fd7-ad61-6f0d42720e5b`) is being worked on in parallel and fixes a bug with exclusion-zone (Sperrzone) drawing on mobile/touch devices. It likely modifies the pointer-event handlers (`handleCanvasPointerDown`, `handleCanvasPointerMove`, `handleCanvasPointerUp`) and/or adds `touch-action: none` styling to the canvas.
+>
+> **After that branch is merged to `main`:**
+> 1. Rebase the `refactor/architecture-v2` branch onto the updated `main`
+> 2. Review what the mobile fix changed in `App.tsx` and carry those exact changes faithfully into `useDragHandlers` (Phase 5)
+> 3. Ensure the fix is preserved in the new `CanvasArea` component (Phase 6) — especially any `touch-action` inline styles and pointer-capture calls
+
+---
+
 ## Problem
 
 `src/App.tsx` (~800 lines) mixes types, state, event handlers, business logic, and rendering into a single component. This makes it hard to test individual concerns, understand data flow, and extend safely.

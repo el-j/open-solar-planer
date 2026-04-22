@@ -234,6 +234,10 @@ onPointerMove={mode === 'free' ? handleCanvasPointerMove : undefined}
 onPointerUp={mode === 'free' ? handleCanvasPointerUp : undefined}
 ```
 
+> ⚠️ **Mobile Sperrzone fix:** Before implementing this component, check what `copilot/bugfix-mobile-drawing-sperrzonen` added to the canvas element (see Phase 5 / `useDragHandlers` notes). In particular:
+> - If the fix added `style={{ touchAction: 'none' }}` to the canvas div, include it here
+> - If the fix added `onPointerCancel` handler, wire it here as well
+
 Children (rendered inside the canvas div):
 - `<GridRenderer />` (when `mode === 'grid'`)
 - `<ExclusionZoneRenderer />` (when `mode === 'free'`)
