@@ -22,7 +22,73 @@
 
 ---
 
-## 🚀 Phase 1 — Polish & Panel Library  *(v1.1 – v1.4)*
+## 🎯 Phase 0.5 — Multi-Area 2D/3D Canvas Engine  *(v1.1 — HIGHEST PRIORITY)*
+
+> **This is the single most impactful improvement to the tool.**  
+> A real solar installation spans multiple surfaces, uses different panels per surface, and needs a 3D sanity-check view.  
+> Everything else (cost planning, string design, yield simulation) builds on top of this canvas engine.  
+> **Full technical specification:** [`docs/CANVAS-ENGINE.md`](./docs/CANVAS-ENGINE.md)
+
+### 0.5.0 — Project & Area Data Model
+- [ ] TypeScript interfaces: `Project`, `Area`, `AreaOutline` (rect + polygon), `FreePanel` (with rotation), `ExclusionZone`, `StringGroup`
+- [ ] `projectReducer.ts` — all mutations handled as typed actions (replaces scattered `useState` in `App.tsx`)
+- [ ] Undo/redo stack built into the reducer (max 100 entries, structural sharing)
+- [ ] `useProject` context hook replaces all `useState` in `App.tsx`
+- [ ] All existing tests updated to pass with new data model
+
+### 0.5.1 — SVG Canvas Renderer (replaces `<div>` renderer)
+- [ ] `<svg viewBox>` as the rendering root — zoom and pan change `viewBox` only, zero React re-renders
+- [ ] `AreaCanvas.tsx` composition: outline layer → exclusion zones → grid panels or free panels → string overlay → selection handles
+- [ ] Grid mode: SVG `<rect>` per panel, polygon outline support (panels only placed inside polygon)
+- [ ] Free mode: SVG `<rect>` per panel with rotation transform; rotation handle (drag grip above selection box)
+- [ ] Snap-to-grid: configurable grid size (default = panel + gap), dashed blue guide lines on snap
+- [ ] Zoom (wheel + pinch): zoom towards cursor position; range 0.1×–5×
+- [ ] Pan (Space+drag, middle-mouse, two-finger drag)
+- [ ] Full keyboard shortcut set (see `docs/CANVAS-ENGINE.md` §11.1)
+
+### 0.5.2 — Area Manager UI
+- [ ] Sidebar area list: add / rename / delete / duplicate / reorder (drag handles)
+- [ ] Colour-coded area badges; per-area kWp shown in list
+- [ ] Area settings panel: surface type, outline (rect or polygon draw tool), tilt °, azimuth °, panel preset, gap, grid offset, layout mode toggle, background image, lock/hide
+- [ ] Overview mode: all areas shown side-by-side on a single infinite canvas; click area → focus
+- [ ] Project totals (combined panel count + kWp) always visible in header
+
+### 0.5.3 — Free Placement Mode Upgrade
+- [ ] Tool palette: Select | Place Panel | Draw Zone | Label | Erase
+- [ ] Multi-select: Shift+Click, rubber-band box-drag, Ctrl+A
+- [ ] Drag selected group as a unit; snap enabled for all panels simultaneously
+- [ ] Copy / paste (Ctrl+C / Ctrl+V) — cross-area paste supported
+- [ ] Per-panel rotation: drag rotation handle; Shift = snap to 45°; `R` key = rotate 90°
+- [ ] Click-to-exclude individual grid cells (grid mode shortcut)
+- [ ] Auto-fill from point (right-click shortcut in free mode)
+
+### 0.5.4 — Polygon Area Outline Tool
+- [ ] Click to place vertices; double-click or click first vertex to close polygon
+- [ ] Draggable vertex handles for adjustment after drawing
+- [ ] Point-in-polygon test used in grid layout (panels only placed inside polygon)
+- [ ] Pre-built polygon templates: L-shape, T-shape, trapezoid, triangle, custom
+- [ ] Grid layout recalculates instantly as polygon vertices are dragged
+
+### 0.5.5 — 2D→3D Isometric View (CSS/SVG, no Three.js)
+- [ ] `IsoView.tsx` — pure SVG isometric projection (zero new dependencies)
+- [ ] Building wizard: enter footprint W × D × H → procedural isometric box
+- [ ] Each Area mapped to a building face; panel layout rendered using isometric matrix transforms
+- [ ] Toggle 2D plan ↔ isometric preview with single button
+- [ ] Sun direction arrow at selected date/time (computed from `solarPosition()`)
+- [ ] Simple cast-shadow polygons for chimneys/dormers; shaded panels highlighted amber
+- [ ] Export isometric view as SVG (for permit documentation)
+
+### 0.5.6 — Three.js 3D Scene (lazy-loaded, Phase 6 preview)
+- [ ] `ThreeScene.tsx` loaded via `React.lazy` — only downloaded when user clicks "Open 3D View"
+- [ ] Building geometry procedurally generated from wizard inputs (flat/gable/hip/shed/mansard)
+- [ ] Each panel rendered as `BoxGeometry` on the correct building face
+- [ ] Orbit controls (mouse + touch), sun directional light from `solarPosition()`
+- [ ] Real-time shadow casting per Three.js sun position
+- [ ] Export scene as glTF 2.0
+
+---
+
+## 🚀 Phase 1 — Polish & Panel Library  *(v1.2 – v1.4)*
 
 *Goal: make the existing tool a pleasure to use on any device, and expand the built-in knowledge base.*
 
