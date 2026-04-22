@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/el-j/open-solar-planer/compare/v1.0.0...v1.1.0) (2026-04-22)
+
+
+### Features
+
+* improve mobile layout with tab-based navigation ([a46c4b4](https://github.com/el-j/open-solar-planer/commit/a46c4b4bd080dd89c9d176a3e6a8aec2566f7d06)), closes [#30](https://github.com/el-j/open-solar-planer/issues/30)
+* mobile tab navigation + comprehensive product roadmap ([164e209](https://github.com/el-j/open-solar-planer/commit/164e209962adcb1419661fc78bbf97b1f2cbd7fa))
+
+
+### Bug Fixes
+
+* clamp exclusion zone coords and handle pointercancel on mobile ([11d38ac](https://github.com/el-j/open-solar-planer/commit/11d38ac5b9e5e3f827504490abe4eeb71c453fd7))
+* mobile Sperrzone drawing bounds, pointercancel cleanup, and canvas UX overhaul ([4a97538](https://github.com/el-j/open-solar-planer/commit/4a975380e6501518e80c2876b49d1e3a5ca4b92b))
+
 ## 1.0.0 (2026-04-21)
 
 
