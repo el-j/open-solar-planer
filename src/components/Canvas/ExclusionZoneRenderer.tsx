@@ -1,8 +1,13 @@
 import { useFreePlacementStore } from '../../stores/FreePlacementStore';
 import { useScaleFactor } from '../../hooks/useScaleFactor';
+import type { DragHandlers } from '../../hooks/useDragHandlers';
 
-export function ExclusionZoneRenderer() {
-  const { exclusionZones, selectedId, setSelectedId, deleteSelected } = useFreePlacementStore();
+type Props = {
+  handlers: Pick<DragHandlers, 'handleZonePointerDown'>;
+};
+
+export function ExclusionZoneRenderer({ handlers }: Props) {
+  const { exclusionZones, selectedId, deleteSelected } = useFreePlacementStore();
   const scaleFactor = useScaleFactor();
 
   return (
@@ -10,7 +15,7 @@ export function ExclusionZoneRenderer() {
       {exclusionZones.map(zone => (
         <div
           key={zone.id}
-          className={`absolute border-2 flex items-center justify-center cursor-pointer transition-colors ${
+          className={`absolute border-2 flex items-center justify-center cursor-grab active:cursor-grabbing select-none transition-colors ${
             selectedId === zone.id
               ? 'border-orange-500 bg-orange-300/50'
               : 'border-orange-400 bg-orange-200/40 hover:bg-orange-200/60'
@@ -22,10 +27,7 @@ export function ExclusionZoneRenderer() {
             height: `${zone.height * scaleFactor}px`,
           }}
           data-testid="exclusion-zone"
-          onPointerDown={e => {
-            e.stopPropagation();
-            setSelectedId(zone.id);
-          }}
+          onPointerDown={e => handlers.handleZonePointerDown(e, zone)}
         >
           {zone.label && zone.height * scaleFactor > 16 && (
             <span className="text-orange-800 text-xs font-medium px-1 truncate max-w-full">

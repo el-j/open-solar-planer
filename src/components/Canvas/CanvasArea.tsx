@@ -11,6 +11,7 @@ import { ExclusionZoneRenderer } from './ExclusionZoneRenderer';
 import { FreePanelRenderer } from './FreePanelRenderer';
 import { FabToolbar } from './FabToolbar';
 import { EmptyStateOverlay } from './EmptyStateOverlay';
+import { SelectionHud } from './SelectionHud';
 
 export function CanvasArea() {
   const { bgImage, zoomScale } = useCanvasStore();
@@ -58,11 +59,14 @@ export function CanvasArea() {
         {mode === 'grid' && <GridRenderer />}
         {mode === 'free' && (
           <>
-            <ExclusionZoneRenderer />
+            <ExclusionZoneRenderer handlers={handlers} />
             <FreePanelRenderer handlers={handlers} />
           </>
         )}
         <EmptyStateOverlay />
+
+        {/* Bottom HUD — position & size controls for selected item in free mode */}
+        {mode === 'free' && <SelectionHud />}
       </div>
 
       {mode === 'free' && <FabToolbar />}

@@ -51,7 +51,7 @@ export type MobileTab = 'canvas' | 'settings';
 
 /**
  * Internal drag state stored in a ref to avoid re-renders mid-drag.
- * Discriminated union: panel drag vs. zone-draw.
+ * Discriminated union: panel drag | zone-draw | zone-move.
  */
 export type DragState =
   | {
@@ -67,6 +67,16 @@ export type DragState =
       drawZoneId: string;
       startX: number; // canvas px
       startY: number; // canvas px
+    }
+  | {
+      type: 'zone-move';
+      id: string;
+      startX: number; // canvas px
+      startY: number; // canvas px
+      origX: number;  // original zone x in cm
+      origY: number;  // original zone y in cm
+      zoneWidth: number;  // zone width in cm (for clamping)
+      zoneHeight: number; // zone height in cm (for clamping)
     };
 
 /** Effective panel dimensions after applying landscape rotation. */

@@ -12,7 +12,7 @@ import { clampPanel } from '../utils/clampPanel';
 import { clampZoneToBounds } from '../utils/clampZoneToBounds';
 import { effectivePanelSize } from '../utils/effectivePanelSize';
 import { generateId } from '../utils/generateId';
-import type { DragState, FreePanel } from '../types';
+import type { DragState, FreePanel, ExclusionZone } from '../types';
 
 export type DragHandlers = {
   handleCanvasPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
@@ -20,6 +20,7 @@ export type DragHandlers = {
   handleCanvasPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
   handleCanvasPointerCancel: (e: React.PointerEvent<HTMLDivElement>) => void;
   handlePanelPointerDown: (e: React.PointerEvent<HTMLDivElement>, panel: FreePanel) => void;
+  handleZonePointerDown: (e: React.PointerEvent<HTMLDivElement>, zone: ExclusionZone) => void;
 };
 
 /**
@@ -141,6 +142,12 @@ export function useDragHandlers(canvasRef: RefObject<HTMLDivElement | null>): Dr
           roofHeight,
         );
         updateZone(dragRef.current.drawZoneId, clamped);
+      } else if (dragRef.current.type === 'zone-move') {
+        const dxCm = pxToCm(pxX - dragRef.current.startX, effectiveScale);
+        const dyCm = pxToCm(pxY - dragRef.current.startY, effectiveScale);
+        const { id, origX, origY, zoneWidth, zoneHeight } = dragRef.current;
+        const clamped = clampPanel(origX + dxCm, origY + dyCm, zoneWidth, zoneHeight, roofWidth, roofHeight);
+        updateZone(id, clamped);
       } else if (dragRef.current.type === 'panel') {
         const dxCm = pxToCm(pxX - dragRef.current.startX, effectiveScale);
         const dyCm = pxToCm(pxY - dragRef.current.startY, effectiveScale);
@@ -158,13 +165,16 @@ export function useDragHandlers(canvasRef: RefObject<HTMLDivElement | null>): Dr
       if (activePointers.current.size < 2) lastPinchDist.current = null;
       if (!dragRef.current) return;
       if (dragRef.current.type === 'zone-draw') {
+        const zid = dragRef.current.drawZoneId;
         // Discard zones smaller than 2×2 cm (accidental click without drag)
-        removeTinyZone(dragRef.current.drawZoneId, 2, 2);
+        removeTinyZone(zid, 2, 2);
         setActiveTool('select');
+        // Auto-select the newly drawn zone so the user can immediately adjust its properties
+        setSelectedId(zid);
       }
       dragRef.current = null;
     },
-    [removeTinyZone, setActiveTool],
+    [removeTinyZone, setActiveTool, setSelectedId],
   );
 
   const handleCanvasPointerCancel = useCallback(
@@ -204,11 +214,34 @@ export function useDragHandlers(canvasRef: RefObject<HTMLDivElement | null>): Dr
     [mode, setSelectedId, canvasRef],
   );
 
+  const handleZonePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>, zone: ExclusionZone) => {
+      if (mode !== 'free') return;
+      e.stopPropagation();
+      if (dragRef.current) return;
+      setSelectedId(zone.id);
+      const rect = canvasRef.current!.getBoundingClientRect();
+      dragRef.current = {
+        type: 'zone-move',
+        id: zone.id,
+        startX: e.clientX - rect.left,
+        startY: e.clientY - rect.top,
+        origX: zone.x,
+        origY: zone.y,
+        zoneWidth: zone.width,
+        zoneHeight: zone.height,
+      };
+      (canvasRef.current as HTMLDivElement).setPointerCapture?.(e.pointerId);
+    },
+    [mode, setSelectedId, canvasRef],
+  );
+
   return {
     handleCanvasPointerDown,
     handleCanvasPointerMove,
     handleCanvasPointerUp,
     handleCanvasPointerCancel,
     handlePanelPointerDown,
+    handleZonePointerDown,
   };
 }
