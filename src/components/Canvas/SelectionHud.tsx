@@ -15,6 +15,9 @@ export function SelectionHud() {
 
   if (!selectedPanel && !selectedZone) return null;
 
+  // Use a single variable for reading shared positional properties
+  const item = selectedPanel ?? selectedZone!;
+
   return (
     <div
       className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-sm border-t border-slate-300 shadow-lg"
@@ -31,7 +34,7 @@ export function SelectionHud() {
           <input
             type="number"
             className="w-16 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs"
-            value={selectedPanel ? selectedPanel.x : selectedZone!.x}
+            value={item.x}
             onChange={e => {
               const val = Number(e.target.value);
               if (selectedPanel) {
@@ -53,7 +56,7 @@ export function SelectionHud() {
           <input
             type="number"
             className="w-16 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs"
-            value={selectedPanel ? selectedPanel.y : selectedZone!.y}
+            value={item.y}
             onChange={e => {
               const val = Number(e.target.value);
               if (selectedPanel) {
@@ -75,7 +78,7 @@ export function SelectionHud() {
           <input
             type="number"
             className="w-16 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs"
-            value={selectedPanel ? selectedPanel.width : selectedZone!.width}
+            value={item.width}
             onChange={e => {
               const val = Math.max(0, Number(e.target.value));
               if (selectedPanel) {
@@ -95,7 +98,7 @@ export function SelectionHud() {
           <input
             type="number"
             className="w-16 px-1.5 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs"
-            value={selectedPanel ? selectedPanel.height : selectedZone!.height}
+            value={item.height}
             onChange={e => {
               const val = Math.max(0, Number(e.target.value));
               if (selectedPanel) {
