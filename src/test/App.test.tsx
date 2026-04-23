@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
@@ -163,5 +163,102 @@ describe('Free placement mode', () => {
     // Second pointer while dragging — should be ignored (no new panel added)
     fireEvent.pointerDown(panel, { clientX: 150, clientY: 150, pointerId: 2 });
     expect(screen.getAllByTestId('free-panel').length).toBe(1);
+  });
+
+  it('shows selection HUD with X/Y/W/H inputs when a panel is selected', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+
+    const canvas = screen.getByTestId('canvas');
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+
+    expect(screen.getByTestId('selection-hud')).toBeInTheDocument();
+    expect(screen.getByTestId('hud-x')).toBeInTheDocument();
+    expect(screen.getByTestId('hud-y')).toBeInTheDocument();
+    expect(screen.getByTestId('hud-width')).toBeInTheDocument();
+    expect(screen.getByTestId('hud-height')).toBeInTheDocument();
+  });
+
+  it('HUD hides when no item is selected', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+
+    expect(screen.queryByTestId('selection-hud')).not.toBeInTheDocument();
+  });
+
+  it('sidebar shows X/Y inputs for selected panel', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+
+    const canvas = screen.getByTestId('canvas');
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100, pointerId: 1 });
+
+    expect(screen.getByTestId('selected-panel-x')).toBeInTheDocument();
+    expect(screen.getByTestId('selected-panel-y')).toBeInTheDocument();
+  });
+
+  it('sidebar shows X/Y/W/H inputs for selected exclusion zone', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+
+    // Draw a zone
+    await user.click(screen.getByTestId('tool-draw-zone'));
+    const canvas = screen.getByTestId('canvas');
+
+    // Mock getBoundingClientRect so coordinates are not clamped to zero in JSDOM
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      top: 0, left: 0, width: 800, height: 600, right: 800, bottom: 600,
+      x: 0, y: 0, toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.pointerDown(canvas, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.pointerMove(canvas, { clientX: 200, clientY: 200, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+
+    // Zone should be created and auto-selected
+    expect(screen.getAllByTestId('exclusion-zone').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('selected-zone-x')).toBeInTheDocument();
+    expect(screen.getByTestId('selected-zone-y')).toBeInTheDocument();
+    expect(screen.getByTestId('selected-zone-width')).toBeInTheDocument();
+    expect(screen.getByTestId('selected-zone-height')).toBeInTheDocument();
+  });
+
+  it('exclusion zone can be moved by dragging (zone-move)', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /switch to free placement mode/i }));
+
+    // Draw a zone
+    await user.click(screen.getByTestId('tool-draw-zone'));
+    const canvas = screen.getByTestId('canvas');
+
+    // Mock getBoundingClientRect so coordinates are not clamped to zero in JSDOM
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      top: 0, left: 0, width: 800, height: 600, right: 800, bottom: 600,
+      x: 0, y: 0, toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.pointerDown(canvas, { clientX: 50, clientY: 50, pointerId: 1 });
+    fireEvent.pointerMove(canvas, { clientX: 200, clientY: 200, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+
+    expect(screen.getAllByTestId('exclusion-zone').length).toBe(1);
+
+    // Get initial X position from HUD
+    const hudX = screen.getByTestId('hud-x') as HTMLInputElement;
+    const initialX = Number(hudX.value);
+
+    // Drag the zone to a new position
+    const zone = screen.getByTestId('exclusion-zone');
+    fireEvent.pointerDown(zone, { clientX: 125, clientY: 125, pointerId: 2 });
+    fireEvent.pointerMove(canvas, { clientX: 175, clientY: 125, pointerId: 2 });
+    fireEvent.pointerUp(canvas, { pointerId: 2 });
+
+    // Zone X should have changed (moved right)
+    expect(Number((screen.getByTestId('hud-x') as HTMLInputElement).value)).toBeGreaterThan(initialX);
   });
 });

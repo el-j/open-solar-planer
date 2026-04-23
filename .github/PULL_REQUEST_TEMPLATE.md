@@ -1,32 +1,40 @@
 ## Description
 
-<!-- Briefly describe what this PR does and why. Link the related issue. -->
+<!-- Briefly describe what this PR does and why. -->
 
 Closes #<!-- issue number -->
 
+## Branch info
+
+- **Source branch:** `<!-- feature/fix/bugfix/hotfix/release -->/<name>`
+- **Target branch:** `<!-- develop | main -->`
+
 ## Type of change
 
-- [ ] 🐛 Bug fix (`fix:` commit)
-- [ ] ✨ New feature (`feat:` commit)
-- [ ] ♻️ Refactoring (`refactor:` commit)
-- [ ] 📝 Documentation (`docs:` commit)
-- [ ] 👷 CI/Tooling (`ci:` or `chore:` commit)
-- [ ] ⚡ Performance improvement (`perf:` commit)
+- [ ] ✨ New feature (`feat:` → minor bump)
+- [ ] 🐛 Bug fix (`fix:` / `bugfix:` → patch bump)
+- [ ] 🚑 Hotfix (`hotfix:` → patch bump, targets `main`)
+- [ ] 🚀 Release (`release/<ver>`, targets `main`)
+- [ ] ♻️ Refactoring (`refactor:` → patch bump)
+- [ ] 📝 Documentation (`docs:` → no bump)
+- [ ] 👷 CI/Tooling (`ci:` / `chore:` → no bump)
+- [ ] ⚡ Performance improvement (`perf:` → patch bump)
+- [ ] 💥 Breaking change (`feat!:` → **major** bump)
 
 ## Changes
 
-<!-- List the main changes in bullet points -->
+<!-- List the main changes -->
 
 -
 -
 
 ## Testing
 
-<!-- Describe how you tested this PR -->
-
 - [ ] Unit tests added / updated
 - [ ] Manual testing in browser
 - [ ] All existing tests pass (`npm test`)
+- [ ] Build passes (`npm run build`)
+- [ ] Lint passes (`npm run lint`)
 
 ## Screenshots (if applicable)
 
@@ -34,7 +42,10 @@ Closes #<!-- issue number -->
 
 ## Checklist
 
-- [ ] My code follows the project's code style (ESLint passes)
-- [ ] I have added/updated relevant tests
-- [ ] I have updated documentation if needed
-- [ ] My commits follow the [Conventional Commits](https://www.conventionalcommits.org/) spec
+- [ ] Branch follows naming convention (`feature/`, `fix/`, `bugfix/`, `hotfix/`, `release/`)
+- [ ] PR targets the correct branch (`develop` for features/fixes; `main` for hotfixes/releases)
+- [ ] Commits follow [Conventional Commits](https://www.conventionalcommits.org/) spec
+- [ ] PR description contains `Closes #N` referencing the GitHub issue
+- [ ] Code style consistent with project (ESLint passes)
+- [ ] Tests added/updated for new logic
+- [ ] Documentation updated if architecture changed

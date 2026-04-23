@@ -16,7 +16,7 @@
 - **Tailwind CSS v4** (`@import "tailwindcss"` in `src/index.css`)
 - **lucide-react** (icons)
 - **Vitest** + **@testing-library/react** (tests)
-- **GitHub Actions** (CI, deploy to Pages, Release Please)
+- **GitHub Actions** (CI, deploy to Pages, GitVersion-based release)
 
 ---
 
@@ -29,10 +29,11 @@
 | `src/test/App.test.tsx` | Integration tests for the React component |
 | `src/test/setup.ts` | Vitest setup (jest-dom matchers) |
 | `vite.config.ts` | Vite config with Tailwind plugin, test config, base path |
-| `.github/workflows/ci.yml` | Lint + test + build on PRs and pushes to main |
-| `.github/workflows/deploy.yml` | Deploy to GitHub Pages on push to main |
-| `.github/workflows/release.yml` | Release Please for automated semver |
-| `release-please-config.json` | Release Please configuration |
+| `GitVersion.yml` | SemVer branch strategy (GitFlow) |
+| `.github/workflows/ci.yml` | Lint + test + build + Pages deploy |
+| `.github/workflows/release.yml` | GitVersion auto-tag + GitHub Release on main |
+| `.github/workflows/seed-issues.yml` | workflow_dispatch — seeds labels/milestones/issues |
+| `scripts/seed-github-issues.mjs` | Node.js issue seed script |
 
 ---
 
@@ -48,7 +49,117 @@ Formula:
 - `rows = floor((roofHeight + gapY) / (effectivePanelHeight + gapY))`
 - `totalPanels = max(0, cols) * max(0, rows)`
 
-Always keep this function pure and exported so it stays testable.
+Always keep this function **pure** and **exported** so it stays testable.
+
+---
+
+## GitHub Issues — Single Source of Truth
+
+**All work is tracked in GitHub Issues before any code is written.**
+
+### Active issues (read these first in every session)
+
+```
+github-mcp-server-list_issues   owner="el-j" repo="open-solar-planer" state="OPEN"
+```
+
+> **Issue #15** — "Need size controls in hud": mobile HUD with W/H/X/Y inputs for selected items; also fixes exclusion zone drag bug. Labels need updating to `type/feat,type/fix,phase/1,status/planned` once seed runs.
+
+### Post-merge bootstrap (run once after this PR lands on main)
+
+```bash
+# 1. Trigger the seed workflow — creates labels, milestones, and all 34 sprint issues
+#    GitHub → Actions → "Seed GitHub Issues" → Run workflow
+#    OR locally:
+GITHUB_TOKEN=<pat> node scripts/seed-github-issues.mjs
+
+# 2. Re-label the pre-existing issue #15
+gh issue edit 15 \
+  --add-label "type/feat,type/fix,phase/1,status/planned,priority/high" \
+  --remove-label "enhancement"
+
+# 3. Create the develop branch
+git switch main && git pull
+git switch -c develop
+git push -u origin develop
+
+# 4. Create a GitHub Project for the roadmap view
+#    → https://github.com/el-j/open-solar-planer/projects/new
+```
+
+### MCP Tools (use these in every agent session)
+
+```
+# List open issues
+github-mcp-server-list_issues   owner="el-j" repo="open-solar-planer" state="OPEN"
+
+# Read a specific issue (acceptance criteria, labels, milestone)
+github-mcp-server-issue_read    method="get"          owner="el-j" repo="open-solar-planer" issue_number=<N>
+
+# Read comments on an issue
+github-mcp-server-issue_read    method="get_comments"  owner="el-j" repo="open-solar-planer" issue_number=<N>
+
+# Search issues
+github-mcp-server-search_issues query="<keywords> repo:el-j/open-solar-planer"
+
+# Read a PR
+github-mcp-server-pull_request_read method="get"      owner="el-j" repo="open-solar-planer" pullNumber=<N>
+
+# Read PR diff
+github-mcp-server-pull_request_read method="get_diff" owner="el-j" repo="open-solar-planer" pullNumber=<N>
+
+# List PRs
+github-mcp-server-list_pull_requests owner="el-j" repo="open-solar-planer" state="open"
+```
+
+### Creating / updating issues (when MCP write tools are unavailable)
+
+```bash
+# Create a new issue
+gh issue create \
+  --title "feat: <short title>" \
+  --label "type/feat,phase/0,status/planned" \
+  --milestone "Phase 0 – Canvas Engine (v1.1)" \
+  --body "..."
+
+# Add a comment
+gh issue comment <N> --body "..."
+
+# Close an issue
+gh issue close <N>
+```
+
+### Label taxonomy
+
+| Prefix     | Values                                                       |
+|------------|--------------------------------------------------------------|
+| `type/`    | `feat` `fix` `bugfix` `hotfix` `docs` `chore` `test` `ci` `refactor` `perf` |
+| `phase/`   | `0` through `7`                                             |
+| `status/`  | `planned` → `in-progress` → `blocked` → `done`             |
+| `priority/`| `high` `medium` `low`                                       |
+
+---
+
+## Branch Strategy (GitFlow + GitVersion SemVer)
+
+```
+main          ← production releases   (v1.2.3)
+develop       ← integration branch    (v1.2.3-beta.N)
+  └─ feature/<name>   → PR to develop  (v1.2.3-feature-<name>.N)
+  └─ fix/<name>       → PR to develop  (v1.2.3-fix-<name>.N)
+  └─ bugfix/<name>    → PR to develop  (v1.2.3-bugfix-<name>.N)
+release/<ver> → PR to main + back-merge to develop  (v1.2.3-rc.N → v1.2.3)
+hotfix/<name> → PR to main + back-merge to develop  (v1.2.3-hotfix.N → v1.2.3)
+```
+
+**SemVer bump rules (driven by Conventional Commits read by GitVersion):**
+
+| Commit prefix | Bump |
+|---|---|
+| `feat!:` / `BREAKING CHANGE:` | Major |
+| `feat:` | Minor |
+| `fix:` / `bugfix:` / `hotfix:` / `perf:` / `refactor:` | Patch |
+| `docs:` / `chore:` / `test:` / `ci:` | No bump |
 
 ---
 
@@ -65,43 +176,13 @@ npm run test:coverage # Coverage report
 
 ---
 
-## Commit Convention
+## CI/CD Workflows
 
-**ALL commits must follow Conventional Commits:**
-
-```
-feat: add polygon roof drawing
-fix: correct panel count in landscape mode
-docs: add screenshot to README
-chore: update lucide-react
-test: add zero-gap edge case
-ci: add test coverage upload
-```
-
-Types: `feat` | `fix` | `perf` | `refactor` | `docs` | `test` | `chore` | `ci`
-
-Breaking change: `feat!:` or add `BREAKING CHANGE:` footer.
-
----
-
-## Release Process (Automated)
-
-[Release Please](https://github.com/googleapis/release-please) handles versioning:
-- `fix:` → patch bump
-- `feat:` → minor bump
-- `feat!:` → major bump
-
-When commits land on `main`, Release Please opens a release PR. Merging it creates a GitHub Release + tag. No manual versioning needed.
-
----
-
-## GitHub Workflow for Issues
-
-1. All work tracked via **GitHub Issues** (bug report / feature request templates in `.github/ISSUE_TEMPLATE/`)
-2. Branch from `main`, name: `feat/<description>` or `fix/<description>`
-3. PR references issue (`Closes #N`), uses PR template in `.github/PULL_REQUEST_TEMPLATE.md`
-4. CI must pass before merge
-5. Release PR created automatically by Release Please
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | Push to any branch; PR to `main`/`develop` | GitVersion → lint → test → build → deploy to Pages (main only) |
+| `release.yml` | Push to `main` | GitVersion → if clean version + no tag → create annotated tag + GitHub Release |
+| `seed-issues.yml` | `workflow_dispatch` (run once) | Creates labels, milestones, and 34 sprint issues |
 
 ---
 
@@ -110,9 +191,10 @@ When commits land on `main`, Release Please opens a release PR. Merging it creat
 - No backend, no API calls — fully static
 - TypeScript strict — no `any`
 - Functional components + hooks only
-- All business logic in pure exported functions
+- All business logic in **pure exported functions**
 - `data-testid` on key output elements (`total-panels`, `total-power`, `layout-grid`, `canvas`, `panel`)
 - `aria-label` on all inputs and interactive elements
 - Tailwind only — no custom CSS except for dynamic inline styles
 - Keep bundle small — no heavy dependencies
 - Tests required for all new pure functions
+- Every commit must reference a GitHub Issue: `Closes #N`

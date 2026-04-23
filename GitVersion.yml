@@ -1,0 +1,79 @@
+# GitVersion configuration — Open Solar Planer
+#
+# Branch strategy (GitFlow):
+#
+#   main         → production releases (clean SemVer: 1.2.3)
+#   develop      → integration / pre-release (1.2.3-beta.N)
+#   release/*    → release candidates (1.2.3-rc.N) — branch from develop, merge → main + develop
+#   hotfix/*     → production hotfixes (1.2.3-hotfix.N) — branch from main, merge → main + develop
+#   feature/*    → new features (1.2.3-feature-my-feat.N) — branch from develop
+#   fix/*        → bug fixes on develop (1.2.3-fix-my-bug.N) — branch from develop
+#   bugfix/*     → alias for fix (same SemVer behaviour)
+#
+# Commit messages drive the version bump (Conventional Commits):
+#   feat:    → minor bump
+#   fix/bugfix/hotfix/perf/refactor: → patch bump
+#   feat!: or BREAKING CHANGE: → major bump
+#   docs/chore/test/ci/style: → no bump
+
+tag-prefix: 'v'
+
+# Conventional Commit bump rules
+major-version-bump-message: '^(feat|BREAKING CHANGE)!.*$'
+minor-version-bump-message: '^feat:.*$'
+patch-version-bump-message: '^(fix|bugfix|hotfix|perf|refactor):.*$'
+no-bump-message: '^(docs|chore|test|ci|style):.*$'
+
+branches:
+  main:
+    regex: ^main$
+    mode: ContinuousDelivery
+    tag: ''
+    increment: Patch
+    is-release-branch: true
+    prevent-increment-of-merged-branch-version: true
+    source-branches: [develop, release, hotfix]
+
+  develop:
+    regex: ^develop$
+    mode: ContinuousDeployment
+    tag: beta
+    increment: Minor
+    track-merge-target: true
+    source-branches: []
+
+  release:
+    regex: ^release[/-]
+    mode: ContinuousDelivery
+    tag: rc
+    increment: None
+    source-branches: [develop]
+    is-release-branch: true
+
+  feature:
+    regex: ^feature[/-]
+    mode: ContinuousDeployment
+    tag: useBranchName
+    increment: Inherit
+    source-branches: [develop]
+
+  fix:
+    regex: ^fix[/-]
+    mode: ContinuousDeployment
+    tag: useBranchName
+    increment: Inherit
+    source-branches: [develop, main]
+
+  bugfix:
+    regex: ^bugfix[/-]
+    mode: ContinuousDeployment
+    tag: useBranchName
+    increment: Inherit
+    source-branches: [develop, main]
+
+  hotfix:
+    regex: ^hotfix[/-]
+    mode: ContinuousDelivery
+    tag: hotfix
+    increment: Patch
+    source-branches: [main]
