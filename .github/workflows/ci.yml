@@ -74,7 +74,7 @@ jobs:
       - name: Setup GitHub Pages
         # Only needed for the Pages upload step that follows.
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
