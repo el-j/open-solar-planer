@@ -32,13 +32,13 @@ jobs:
           fetch-depth: 0
 
       - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v3
+        uses: gittools/actions/gitversion/setup@v4
         with:
           versionSpec: '5.x'
 
       - name: Execute GitVersion
         id: gv
-        uses: gittools/actions/gitversion/execute@v3
+        uses: gittools/actions/gitversion/execute@v4
         with:
           useConfigFile: true   # reads GitVersion.yml at repo root
 
